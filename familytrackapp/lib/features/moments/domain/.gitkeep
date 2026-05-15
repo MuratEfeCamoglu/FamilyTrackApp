@@ -1,0 +1,2 @@
+// TODO: Moments feature — domain katmanı
+// Dosyalar: moments_repository.dart (interface), moment_entity.dart, get_moments_usecase.dart, add_moment_usecase.dart

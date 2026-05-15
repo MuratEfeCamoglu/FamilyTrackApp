@@ -1,0 +1,3 @@
+// TODO: Today feature — data katmanı
+// Dosyalar: today_repository_impl.dart, today_datasource.dart, today_model.dart
+// CLAUDE.md: Repository interface'i (domain/) önce yazılır, sonra burada implemente edilir.

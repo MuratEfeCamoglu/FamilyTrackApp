@@ -1,0 +1,2 @@
+// TODO: Calendar feature — domain katmanı
+// Dosyalar: calendar_repository.dart (interface), special_day_entity.dart, get_events_for_month_usecase.dart

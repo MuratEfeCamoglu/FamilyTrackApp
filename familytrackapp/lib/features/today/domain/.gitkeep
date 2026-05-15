@@ -1,0 +1,3 @@
+// TODO: Today feature — domain katmanı
+// Dosyalar: today_repository.dart (interface), today_entity.dart, get_today_summary_usecase.dart
+// CLAUDE.md: Önce interface/contract, sonra implementasyon.

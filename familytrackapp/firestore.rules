@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Kendi verilerine erişim kuralları
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // Kişiler (Persons) alt koleksiyonu
+      match /persons/{personId} {
+        allow read, write: if isOwner(userId);
+
+        // Kişi detayları alt koleksiyonu
+        match /details/{detailId} {
+          allow read, write: if isOwner(userId);
+        }
+
+        // Özel Günler alt koleksiyonu
+        match /specialDays/{dayId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
+      // Anlar (Moments) alt koleksiyonu
+      match /moments/{momentId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // collectionGroup('specialDays') sorgusu için kural
+    match /{path=**}/specialDays/{dayId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+  }
+}

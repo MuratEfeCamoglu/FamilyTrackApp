@@ -1,0 +1,3 @@
+// TODO: Today feature — presentation katmanı
+// Dosyalar: today_page.dart, today_cubit.dart, today_state.dart, widgets/
+// CLAUDE.md: UI asla doğrudan repository çağırmaz — her zaman Cubit üzerinden geçer.

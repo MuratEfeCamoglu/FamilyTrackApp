@@ -1,0 +1,3 @@
+// TODO: Profile feature — domain katmanı
+// Dosyalar: profile_repository.dart (interface), person_entity.dart, detail_entity.dart
+//           get_persons_usecase.dart, add_person_usecase.dart, delete_person_usecase.dart

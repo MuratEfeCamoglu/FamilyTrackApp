@@ -1,0 +1,3 @@
+// TODO: Moments feature — data katmanı
+// Dosyalar: moments_repository_impl.dart, moments_datasource.dart, moment_model.dart
+// CLAUDE.md: Fotoğraf upload öncesi compress edilir (max 5MB)
