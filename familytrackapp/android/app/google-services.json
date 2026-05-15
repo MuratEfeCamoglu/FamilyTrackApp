@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "589131812593",
+    "project_id": "familytrackerapp-44ca2",
+    "storage_bucket": "familytrackerapp-44ca2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589131812593:android:2623e6dabc3f7d344a2350",
+        "android_client_info": {
+          "package_name": "com.example.familytrackapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnQMOecoidAWnZeUJCku8IsW_M92kAfBU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

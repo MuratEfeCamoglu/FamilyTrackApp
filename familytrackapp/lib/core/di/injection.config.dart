@@ -15,6 +15,8 @@ import 'package:firebase_storage/firebase_storage.dart' as _i457;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
+import '../../features/calendar/presentation/cubit/calendar_cubit.dart'
+    as _i131;
 import '../../features/moments/data/datasources/moments_remote_datasource.dart'
     as _i268;
 import '../../features/moments/data/repositories/moments_repository_impl.dart'
@@ -22,6 +24,7 @@ import '../../features/moments/data/repositories/moments_repository_impl.dart'
 import '../../features/moments/domain/repositories/moments_repository.dart'
     as _i285;
 import '../../features/moments/domain/usecases/moment_usecases.dart' as _i861;
+import '../../features/moments/presentation/cubit/moments_cubit.dart' as _i484;
 import '../../features/profile/data/datasources/person_remote_datasource.dart'
     as _i282;
 import '../../features/profile/data/repositories/person_repository_impl.dart'
@@ -40,6 +43,10 @@ import '../../features/profile/domain/usecases/special_day_usecases.dart'
     as _i770;
 import '../../features/profile/domain/usecases/update_person_usecase.dart'
     as _i971;
+import '../../features/profile/presentation/cubit/person_detail_cubit.dart'
+    as _i231;
+import '../../features/profile/presentation/cubit/profile_cubit.dart' as _i36;
+import '../../features/today/presentation/cubit/today_cubit.dart' as _i424;
 import 'register_module.dart' as _i291;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -112,6 +119,41 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i861.DeleteMomentUseCase>(
       () => _i861.DeleteMomentUseCase(gh<_i285.MomentsRepository>()),
+    );
+    gh.factory<_i484.MomentsCubit>(
+      () => _i484.MomentsCubit(
+        getMomentsUseCase: gh<_i861.GetMomentsUseCase>(),
+        getPersonsUseCase: gh<_i926.GetPersonsUseCase>(),
+        addMomentUseCase: gh<_i861.AddMomentUseCase>(),
+        deleteMomentUseCase: gh<_i861.DeleteMomentUseCase>(),
+      ),
+    );
+    gh.factory<_i131.CalendarCubit>(
+      () => _i131.CalendarCubit(
+        getAllSpecialDaysUseCase: gh<_i770.GetAllSpecialDaysUseCase>(),
+      ),
+    );
+    gh.factory<_i231.PersonDetailCubit>(
+      () => _i231.PersonDetailCubit(
+        getPersonDetailsUseCase: gh<_i828.GetPersonDetailsUseCase>(),
+        addPersonDetailUseCase: gh<_i828.AddPersonDetailUseCase>(),
+        deletePersonDetailUseCase: gh<_i828.DeletePersonDetailUseCase>(),
+      ),
+    );
+    gh.factory<_i36.ProfileCubit>(
+      () => _i36.ProfileCubit(
+        getPersonsUseCase: gh<_i926.GetPersonsUseCase>(),
+        addPersonUseCase: gh<_i850.AddPersonUseCase>(),
+        updatePersonUseCase: gh<_i971.UpdatePersonUseCase>(),
+        deletePersonUseCase: gh<_i385.DeletePersonUseCase>(),
+      ),
+    );
+    gh.factory<_i424.TodayCubit>(
+      () => _i424.TodayCubit(
+        getPersonsUseCase: gh<_i926.GetPersonsUseCase>(),
+        getSpecialDaysUseCase: gh<_i770.GetSpecialDaysUseCase>(),
+        getMomentsByPersonUseCase: gh<_i861.GetMomentsByPersonUseCase>(),
+      ),
     );
     return this;
   }

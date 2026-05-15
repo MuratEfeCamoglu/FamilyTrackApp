@@ -3,45 +3,76 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+
 import 'package:familytrackapp/firebase_options.dart';
 
-/// Firebase başlatma ve erişim servisi.
-///
-/// CLAUDE.md §Firebase Best Practices:
-/// - Offline persistence aktif edilir.
-/// - `Timestamp` işlemleri `FieldValue.serverTimestamp()` ile yapılır.
-/// - Tüm işlemler `try/catch` ile `Failure`'a dönüştürülür.
+/// Firebase baslatma ve erisim servisi.
 class FirebaseService {
   FirebaseService._();
 
   static FirebaseFirestore get firestore => FirebaseFirestore.instance;
   static FirebaseAuth get auth => FirebaseAuth.instance;
   static FirebaseStorage get storage => FirebaseStorage.instance;
+  static bool _isInitialized = false;
+  static Object? _lastInitError;
 
-  /// Firebase'i başlatır ve Firestore offline persistence ayarlarını uygular.
-  ///
-  /// `main.dart` içinde `WidgetsFlutterBinding.ensureInitialized()` sonrası çağrılır.
+  /// Firebase'i baslatir ve Firestore ayarlarini uygular.
   static Future<void> initialize() async {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    _configureFirestore();
-    debugPrint('✅ Firebase başlatıldı');
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      _configureFirestore();
+      _isInitialized = true;
+      debugPrint('Firebase baslatildi');
+    } catch (e) {
+      _isInitialized = false;
+      _lastInitError = e;
+      debugPrint('Firebase baslatilamadi: $e');
+      return;
+    }
   }
 
-  /// Firestore offline persistence ve cache boyutu ayarları.
   static void _configureFirestore() {
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
-      // 100 MB local cache — büyük aile albümleri için yeterli
       cacheSizeBytes: 104857600,
     );
   }
 
-  /// Şu anda oturum açmış kullanıcının UID'si.
-  /// Oturum yoksa `null` döner.
+  /// E-posta/sifre ile giris yapar.
+  static Future<UserCredential> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) {
+    return auth.signInWithEmailAndPassword(email: email, password: password);
+  }
+
+  /// E-posta/sifre ile yeni kullanici olusturur.
+  static Future<UserCredential> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) {
+    return auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// Cikis yapar.
+  static Future<void> signOut() {
+    return auth.signOut();
+  }
+
   static String? get currentUserId => auth.currentUser?.uid;
 
-  /// Kullanıcının oturum açmış olup olmadığını kontrol eder.
-  static bool get isAuthenticated => auth.currentUser != null;
+  static bool get isAuthenticated {
+    final user = auth.currentUser;
+    if (user == null) return false;
+    return !user.isAnonymous;
+  }
+
+  static bool get isInitialized => _isInitialized;
+
+  static Object? get lastInitError => _lastInitError;
 }
