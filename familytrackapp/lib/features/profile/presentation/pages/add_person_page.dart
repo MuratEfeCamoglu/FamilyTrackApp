@@ -37,7 +37,19 @@ class _AddPersonPageState extends State<AddPersonPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BlocListener<ProfileCubit, ProfileState>(
+      listener: (context, state) {
+        if (state is ProfileError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red.shade400,
+            ),
+          );
+          if (_isSaving) setState(() => _isSaving = false);
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Yeni Kişi Ekle'),
@@ -154,6 +166,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
           ],
         ),
       ),
+    ),
     );
   }
 

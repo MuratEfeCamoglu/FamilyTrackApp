@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:familytrackapp/core/constants/app_colors.dart';
 import 'package:familytrackapp/core/constants/app_enums.dart';
@@ -13,9 +14,7 @@ import 'package:familytrackapp/features/profile/presentation/cubit/person_detail
 import 'package:familytrackapp/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:familytrackapp/features/profile/presentation/pages/add_person_page.dart';
 import 'package:familytrackapp/shared/widgets/loading_skeleton.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
-/// Kişi detaylarını ve listesini tek bir ekranda gösteren ana Profil sayfası.
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -54,7 +53,6 @@ class _ProfileViewState extends State<_ProfileView> {
           listener: (context, state) {
             if (state is ProfileLoaded) {
               if (state.persons.isNotEmpty) {
-                // If selected person is null or no longer exists, select first
                 if (_selectedPerson == null ||
                     !state.persons.any((p) => p.id == _selectedPerson!.id)) {
                   _selectPerson(state.persons.first);
@@ -63,21 +61,31 @@ class _ProfileViewState extends State<_ProfileView> {
                 setState(() => _selectedPerson = null);
               }
             }
+            // Hata durumunu kullanıcıya göster
+            if (state is ProfileError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red.shade400,
+                ),
+              );
+            }
           },
           builder: (context, state) {
             if (state is ProfileLoading || state is ProfileInitial) {
               return const PageLoadingSkeleton(showHeroCard: true, itemCount: 4);
             }
-            if (state is ProfileError) {
+            if (state is ProfileError && _selectedPerson == null) {
               return _ErrorView(message: state.message);
             }
-            if (state is ProfileLoaded) {
-              if (state.persons.isEmpty) {
-                return const _EmptyView();
-              }
-              return _buildContent(state.persons);
+            if (state is ProfileLoaded && state.persons.isEmpty) {
+              return _EmptyView(
+                onAddPerson: () => _navigateToAddPerson(context),
+              );
             }
-            return const SizedBox.shrink();
+            final persons = state is ProfileLoaded ? state.persons : <Person>[];
+            if (persons.isEmpty) return const SizedBox.shrink();
+            return _buildContent(context, persons);
           },
         ),
       ),
@@ -103,7 +111,20 @@ class _ProfileViewState extends State<_ProfileView> {
         );
   }
 
-  Widget _buildContent(List<Person> persons) {
+  void _navigateToAddPerson(BuildContext context) {
+    final cubit = context.read<ProfileCubit>();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: cubit,
+          child: const AddPersonPage(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<Person> persons) {
     if (_selectedPerson == null) return const SizedBox.shrink();
 
     return RefreshIndicator(
@@ -115,58 +136,62 @@ class _ProfileViewState extends State<_ProfileView> {
       },
       child: CustomScrollView(
         slivers: [
+          // ── Header: Avatar + Ad + İlişki + Ayarlar ────────
           SliverToBoxAdapter(
             child: _ProfileHeader(person: _selectedPerson!)
                 .animate()
                 .fade(duration: 400.ms)
                 .slideY(begin: -0.1, end: 0, curve: Curves.easeOutQuad),
           ),
+
+          // ── Kişi Seçici ──────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: _PersonSelector(
                 persons: persons,
                 selectedPersonId: _selectedPerson!.id,
                 onSelect: _selectPerson,
-              ).animate().fade(delay: 100.ms, duration: 400.ms).slideX(begin: 0.1, end: 0, curve: Curves.easeOutQuad),
+              ).animate().fade(delay: 100.ms, duration: 400.ms),
             ),
           ),
+
+          // ── Düzenle / Yeni Kişi Ekle butonları ───────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
               child: _ActionButtonsRow(
-                onEdit: () {
-                  // TODO: Edit person details later
-                },
-                onAddPerson: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: context.read<ProfileCubit>(),
-                        child: const AddPersonPage(),
-                      ),
-                    ),
-                  );
-                },
+                onEdit: () {},
+                onAddPerson: () => _navigateToAddPerson(context),
               ).animate().fade(delay: 200.ms, duration: 400.ms),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+
+          // ── Bento Grid Kartlar ───────────────────────────
           BlocBuilder<PersonDetailCubit, PersonDetailState>(
             builder: (context, detailState) {
-              if (detailState is PersonDetailLoading || detailState is PersonDetailInitial) {
+              if (detailState is PersonDetailLoading ||
+                  detailState is PersonDetailInitial) {
                 return const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.xl),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    child: Center(
+                        child: CircularProgressIndicator(
+                            color: AppColors.primary)),
                   ),
                 );
               }
 
               List<PersonDetail> details = [];
-              if (detailState is PersonDetailLoaded) details = detailState.details;
-              if (detailState is PersonDetailActionSuccess) details = detailState.details;
+              if (detailState is PersonDetailLoaded) {
+                details = detailState.details;
+              }
+              if (detailState is PersonDetailActionSuccess) {
+                details = detailState.details;
+              }
 
               if (details.isEmpty) {
                 return const SliverToBoxAdapter(
@@ -190,20 +215,22 @@ class _ProfileViewState extends State<_ProfileView> {
                     crossAxisCount: 2,
                     crossAxisSpacing: AppSpacing.md,
                     mainAxisSpacing: AppSpacing.md,
-                    childAspectRatio: 0.95, // Bento kartlar kareye yakın
+                    childAspectRatio: 0.95,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final detail = details[index];
                       return GestureDetector(
-                        onLongPress: () => _confirmDeleteDetail(context, detail),
-                        child: AnimatedBouncingButton(
-                          child: _BentoCard(detail: detail),
-                        ),
+                        onLongPress: () =>
+                            _confirmDeleteDetail(context, detail),
+                        child: _BentoCard(detail: detail),
                       )
                           .animate(delay: (50 * index).ms)
                           .fade(duration: 400.ms)
-                          .slideY(begin: 0.1, end: 0, curve: Curves.easeOutQuad);
+                          .slideY(
+                              begin: 0.1,
+                              end: 0,
+                              curve: Curves.easeOutQuad);
                     },
                     childCount: details.length,
                   ),
@@ -211,7 +238,8 @@ class _ProfileViewState extends State<_ProfileView> {
               );
             },
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ),
     );
@@ -234,7 +262,7 @@ class _ProfileViewState extends State<_ProfileView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Bilgiyi Sil'),
-        content: Text('"${detail.key}" bilgisini silmek istediğinize emin misiniz?'),
+        content: Text('"${detail.key}" bilgisini silmek istiyor musunuz?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -257,7 +285,7 @@ class _ProfileViewState extends State<_ProfileView> {
 }
 
 // ─────────────────────────────────────────────────────────
-// Bileşenler
+// Profil Başlığı
 // ─────────────────────────────────────────────────────────
 
 class _ProfileHeader extends StatelessWidget {
@@ -271,12 +299,14 @@ class _ProfileHeader extends StatelessWidget {
         : '?';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.sm),
       child: Row(
         children: [
+          // Avatar
           Container(
-            width: 52,
-            height: 52,
+            width: 56,
+            height: 56,
             decoration: const BoxDecoration(
               color: AppColors.primaryLight,
               shape: BoxShape.circle,
@@ -289,11 +319,14 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.md),
+          // Ad + İlişki
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(person.name, style: AppTextStyles.h1.copyWith(fontSize: 24)),
+                Text(person.name,
+                    style: AppTextStyles.h1.copyWith(
+                        fontSize: 22, color: AppColors.primaryDark)),
                 Text(
                   person.relationshipType.label.toUpperCase(),
                   style: AppTextStyles.caption.copyWith(
@@ -307,13 +340,18 @@ class _ProfileHeader extends StatelessWidget {
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary, size: 28),
+            icon: const Icon(Icons.settings_outlined,
+                color: AppColors.textSecondary, size: 26),
           ),
         ],
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────
+// Kişi Seçici
+// ─────────────────────────────────────────────────────────
 
 class _PersonSelector extends StatelessWidget {
   const _PersonSelector({
@@ -338,7 +376,6 @@ class _PersonSelector extends StatelessWidget {
         itemBuilder: (context, index) {
           final person = persons[index];
           final isActive = person.id == selectedPersonId;
-
           return GestureDetector(
             onTap: () => onSelect(person),
             child: AnimatedContainer(
@@ -353,7 +390,7 @@ class _PersonSelector extends StatelessWidget {
                 person.name,
                 style: AppTextStyles.bodyBold.copyWith(
                   color: isActive ? Colors.white : AppColors.primaryDark,
-                  fontSize: 16,
+                  fontSize: 15,
                 ),
               ),
             ),
@@ -363,6 +400,10 @@ class _PersonSelector extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────
+// Buton Satırı
+// ─────────────────────────────────────────────────────────
 
 class _ActionButtonsRow extends StatelessWidget {
   const _ActionButtonsRow({required this.onEdit, required this.onAddPerson});
@@ -374,66 +415,44 @@ class _ActionButtonsRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        AnimatedBouncingButton(
-          child: OutlinedButton.icon(
-            onPressed: onEdit,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryDark,
-              side: const BorderSide(color: AppColors.primaryDark, width: 1.2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Düzenle', style: TextStyle(fontWeight: FontWeight.w600)),
+        OutlinedButton.icon(
+          onPressed: onEdit,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primaryDark,
+            side: const BorderSide(color: AppColors.primaryDark, width: 1.2),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: const Text('Düzenle',
+              style: TextStyle(fontWeight: FontWeight.w600)),
         ),
         const SizedBox(width: AppSpacing.sm),
-        AnimatedBouncingButton(
-          child: ElevatedButton.icon(
-            onPressed: onAddPerson,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryDark,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-            label: const Text('Yeni Kişi Ekle', style: TextStyle(fontWeight: FontWeight.w600)),
+        ElevatedButton.icon(
+          onPressed: onAddPerson,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryDark,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30)),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
+          icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+          label: const Text('Yeni Kişi Ekle',
+              style: TextStyle(fontWeight: FontWeight.w600)),
         ),
       ],
     );
   }
 }
 
-class AnimatedBouncingButton extends StatefulWidget {
-  final Widget child;
-  const AnimatedBouncingButton({super.key, required this.child});
-
-  @override
-  State<AnimatedBouncingButton> createState() => _AnimatedBouncingButtonState();
-}
-
-class _AnimatedBouncingButtonState extends State<AnimatedBouncingButton> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => setState(() => _isPressed = true),
-      onPointerUp: (_) => setState(() => _isPressed = false),
-      onPointerCancel: (_) => setState(() => _isPressed = false),
-      child: widget.child
-          .animate(target: _isPressed ? 1 : 0)
-          .scaleXY(end: 0.95, duration: 100.ms, curve: Curves.easeInOut),
-    );
-  }
-}
+// ─────────────────────────────────────────────────────────
+// Bento Kart — fotoğraftaki gibi tasarım
+// ─────────────────────────────────────────────────────────
 
 class _BentoCard extends StatelessWidget {
   const _BentoCard({required this.detail});
@@ -444,15 +463,17 @@ class _BentoCard extends StatelessWidget {
     final isAlert = detail.key.toLowerCase().contains('önemli') ||
         detail.key.toLowerCase().contains('alerji');
 
-    const bgColor = AppColors.surface;
-    final iconBgColor = isAlert ? const Color(0xFFFFDAD6) : AppColors.primaryLight;
-    final keyColor = isAlert ? const Color(0xFFBA1A1A) : AppColors.textSecondary; // textSecondary matches HTML style better
+    final iconBgColor =
+        isAlert ? const Color(0xFFFFDAD6) : AppColors.primaryLight;
+    final keyColor =
+        isAlert ? const Color(0xFFBA1A1A) : AppColors.textSecondary;
 
     return Container(
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: isAlert ? Border.all(color: const Color(0xFFFFDAD6), width: 1.5) : null,
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border:
+            isAlert ? Border.all(color: const Color(0xFFFFDAD6), width: 1.5) : null,
         boxShadow: const [
           BoxShadow(
             color: Color(0x0AE91E8C),
@@ -464,9 +485,10 @@ class _BentoCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // İkon dairesi
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: iconBgColor,
               shape: BoxShape.circle,
@@ -474,31 +496,37 @@ class _BentoCard extends StatelessWidget {
             child: Center(
               child: Text(
                 detail.icon ?? '💬',
-                style: const TextStyle(fontSize: 24),
+                style: const TextStyle(fontSize: 26),
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            detail.key.toUpperCase(),
-            style: AppTextStyles.caption.copyWith(
-              color: keyColor,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 10),
+          // Başlık (küçük caps)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              detail.key.toUpperCase(),
+              style: AppTextStyles.caption.copyWith(
+                color: keyColor,
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.w700,
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Değer (büyük ve bold)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
             child: Text(
               detail.value,
               style: AppTextStyles.bodyBold.copyWith(
                 color: AppColors.textPrimary,
-                fontSize: 18,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
               ),
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -528,9 +556,25 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
   String _selectedIcon = '💬';
   bool _isSaving = false;
 
-  static const _presetIcons = [
-    '🌸', '☕', '🎵', '🍕', '🌙', '❤️', '🏆', '✈️', '📚', '🎨',
-    '💊', '🌹', '⭐', '🐾', '🎭', '💼', '🎮', '💬',
+  // Önceden tanımlı kategoriler (fotoğraftaki gibi)
+  static const _presetCategories = [
+    {'icon': '🌸', 'label': 'En Sevdiği Çiçek'},
+    {'icon': '☕', 'label': 'Kahve Tercihi'},
+    {'icon': '💍', 'label': 'Yüzük Ölçüsü'},
+    {'icon': '🎵', 'label': 'Favori Müzik'},
+    {'icon': '🍕', 'label': 'Favori Yemek'},
+    {'icon': '🌙', 'label': 'Uyku Saati'},
+    {'icon': '❤️', 'label': 'Sevdiği Şey'},
+    {'icon': '🏆', 'label': 'Başarısı'},
+    {'icon': '✈️', 'label': 'Gitmek İstediği Yer'},
+    {'icon': '📚', 'label': 'Favori Kitap'},
+    {'icon': '🎨', 'label': 'Hobisi'},
+    {'icon': '💊', 'label': 'İlaç / Alerji'},
+    {'icon': '🌹', 'label': 'Favori Çiçek'},
+    {'icon': '⭐', 'label': 'Önemli Not'},
+    {'icon': '🐾', 'label': 'Evcil Hayvan'},
+    {'icon': '🎮', 'label': 'Oyun Tercihi'},
+    {'icon': '💬', 'label': 'Diğer'},
   ];
 
   @override
@@ -544,10 +588,11 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg + bottom),
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg + bottom),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -566,41 +611,70 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Yeni Bilgi Ekle', style: AppTextStyles.h2),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Hazır kategorilerden seçin ya da kendiniz yazın',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary),
+            ),
             const SizedBox(height: AppSpacing.lg),
 
-            Text('İkon', style: AppTextStyles.label),
+            // Hazır kategori butonları
+            Text('Hızlı Kategori', style: AppTextStyles.label),
             const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              height: 50,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _presetIcons.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-                itemBuilder: (_, i) {
-                  final icon = _presetIcons[i];
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedIcon = icon),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: _selectedIcon == icon ? AppColors.primaryLight : AppColors.background,
-                        borderRadius: BorderRadius.circular(AppSpacing.sm),
-                        border: _selectedIcon == icon ? Border.all(color: AppColors.primary, width: 2) : null,
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: _presetCategories.map((cat) {
+                final isSelected = _selectedIcon == cat['icon'] &&
+                    _keyController.text == cat['label'];
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedIcon = cat['icon']!;
+                      _keyController.text = cat['label']!;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primaryLight
+                          : AppColors.background,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.primaryLight,
+                        width: 1.5,
                       ),
-                      child: Center(child: Text(icon, style: const TextStyle(fontSize: 22))),
                     ),
-                  );
-                },
-              ),
+                    child: Text(
+                      '${cat['icon']} ${cat['label']}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: isSelected
+                            ? AppColors.primaryDark
+                            : AppColors.textPrimary,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
 
+            // Manuel giriş
             Text('Bilgi Başlığı', style: AppTextStyles.label),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _keyController,
-              decoration: const InputDecoration(hintText: 'Örn: Favori Çiçek, Önemli Not'),
+              decoration: const InputDecoration(
+                  hintText: 'Örn: Favori Çiçek, Kan Grubu'),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -608,7 +682,8 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _valueController,
-              decoration: const InputDecoration(hintText: 'Örn: Papatya, Fıstık Alerjisi'),
+              decoration:
+                  const InputDecoration(hintText: 'Örn: Papatya, A Rh+'),
             ),
             const SizedBox(height: AppSpacing.xl),
 
@@ -617,7 +692,11 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _save,
                 child: _isSaving
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Text('Ekle'),
               ),
             ),
@@ -631,22 +710,23 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
     final key = _keyController.text.trim();
     final value = _valueController.text.trim();
     if (key.isEmpty || value.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen tüm alanları doldurun.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen tüm alanları doldurun.')));
       return;
     }
     setState(() => _isSaving = true);
     final detail = PersonDetail(
       id: '',
-      personId: '', // DetailCubit uses the current person's ID implicitly or adds it in the backend
+      personId: '',
       key: key,
       value: value,
       icon: _selectedIcon,
       createdAt: DateTime.now(),
     );
     await context.read<PersonDetailCubit>().addDetail(
-      userId: FirebaseService.currentUserId ?? '',
-      detail: detail,
-    );
+          userId: FirebaseService.currentUserId ?? '',
+          detail: detail,
+        );
     if (mounted) Navigator.pop(context);
   }
 }
@@ -656,7 +736,8 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
 // ─────────────────────────────────────────────────────────
 
 class _EmptyView extends StatelessWidget {
-  const _EmptyView();
+  const _EmptyView({required this.onAddPerson});
+  final VoidCallback onAddPerson;
 
   @override
   Widget build(BuildContext context) {
@@ -673,29 +754,21 @@ class _EmptyView extends StatelessWidget {
                 color: AppColors.primaryLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.people_outline_rounded, size: 52, color: AppColors.primary),
+              child: const Icon(Icons.people_outline_rounded,
+                  size: 52, color: AppColors.primary),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Henüz kimse yok', style: AppTextStyles.h2),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Sevdiklerinizi ekleyerek anılarınızı kaydetmeye başlayın.',
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style:
+                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BlocProvider.value(
-                      value: context.read<ProfileCubit>(),
-                      child: const AddPersonPage(),
-                    ),
-                  ),
-                );
-              },
+              onPressed: onAddPerson,
               icon: const Icon(Icons.person_add_rounded),
               label: const Text('İlk Kişiyi Ekle'),
             ),
@@ -705,6 +778,10 @@ class _EmptyView extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────
+// Hata Görünümü
+// ─────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message});
@@ -718,7 +795,8 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 52, color: AppColors.primary),
+            const Icon(Icons.error_outline_rounded,
+                size: 52, color: AppColors.primary),
             const SizedBox(height: AppSpacing.md),
             Text('Hata', style: AppTextStyles.h2),
             const SizedBox(height: AppSpacing.sm),
