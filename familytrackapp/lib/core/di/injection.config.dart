@@ -131,6 +131,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i131.CalendarCubit>(
       () => _i131.CalendarCubit(
         getAllSpecialDaysUseCase: gh<_i770.GetAllSpecialDaysUseCase>(),
+        getPersonsUseCase: gh<_i926.GetPersonsUseCase>(),
       ),
     );
     gh.factory<_i231.PersonDetailCubit>(

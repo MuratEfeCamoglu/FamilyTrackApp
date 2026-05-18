@@ -144,9 +144,9 @@ class _MainShell extends StatelessWidget {
   }
 }
 
-/// Sayfalar arasi gecis animasyonlarini React Framer Motion stiliyle
-/// (soft slide and fade) saglayan ozel kapsayici.
-class _AnimatedBranchContainer extends StatefulWidget {
+/// Sayfalar arasi gecisi yuksek performansli, anlik ve 60/120 FPS hizinda
+/// saglayan, durumlari koruyan (state preservation) yerel kapsayici.
+class _AnimatedBranchContainer extends StatelessWidget {
   const _AnimatedBranchContainer({
     required this.currentIndex,
     required this.children,
@@ -156,82 +156,10 @@ class _AnimatedBranchContainer extends StatefulWidget {
   final List<Widget> children;
 
   @override
-  State<_AnimatedBranchContainer> createState() => _AnimatedBranchContainerState();
-}
-
-class _AnimatedBranchContainerState extends State<_AnimatedBranchContainer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late int _currentIndex;
-  late int _previousIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.currentIndex;
-    _previousIndex = widget.currentIndex;
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    )..value = 1.0;
-  }
-
-  @override
-  void didUpdateWidget(_AnimatedBranchContainer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.currentIndex != oldWidget.currentIndex) {
-      _previousIndex = oldWidget.currentIndex;
-      _currentIndex = widget.currentIndex;
-      _controller.forward(from: 0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: List.generate(widget.children.length, (index) {
-        final isActive = index == _currentIndex;
-        final isPrevious = index == _previousIndex;
-
-        return Offstage(
-          offstage: !isActive && !isPrevious,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              double opacity = 0.0;
-              double dy = 0.0;
-
-              if (isActive) {
-                // initial={{ opacity: 0, y: 20 }} -> animate={{ opacity: 1, y: 0 }}
-                opacity = _controller.value;
-                dy = 20 * (1 - _controller.value);
-              } else if (isPrevious) {
-                // exit={{ opacity: 0, y: -20 }}
-                opacity = 1 - _controller.value;
-                dy = -20 * _controller.value;
-              }
-
-              return Transform.translate(
-                offset: Offset(0, dy),
-                child: Opacity(
-                  opacity: opacity.clamp(0.0, 1.0),
-                  child: IgnorePointer(
-                    ignoring: !isActive,
-                    child: child,
-                  ),
-                ),
-              );
-            },
-            child: widget.children[index],
-          ),
-        );
-      }),
+    return IndexedStack(
+      index: currentIndex,
+      children: children,
     );
   }
 }

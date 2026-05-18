@@ -22,29 +22,29 @@ class AppTheme {
         displayLarge: GoogleFonts.nunito(
           fontSize: 57,
           fontWeight: FontWeight.w800,
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
           letterSpacing: -0.25,
         ),
         displayMedium: GoogleFonts.nunito(
           fontSize: 45,
           fontWeight: FontWeight.w800,
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
         ),
         displaySmall: GoogleFonts.nunito(
           fontSize: 36,
           fontWeight: FontWeight.w700,
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
         ),
         // ── Headline ─────────────────────────────────────
         headlineLarge: GoogleFonts.nunito(
           fontSize: 32,
           fontWeight: FontWeight.w800,
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
         ),
         headlineMedium: GoogleFonts.nunito(
           fontSize: 28,
           fontWeight: FontWeight.w800,
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
         ),
         headlineSmall: GoogleFonts.nunito(
           fontSize: 22,
@@ -114,21 +114,21 @@ class AppTheme {
   // ─────────────────────────────────────────────────────────
   static const ColorScheme _colorScheme = ColorScheme(
     brightness: Brightness.light,
-    // Primary — canlı pembe
+    // Primary — gri/siyah
     primary: AppColors.primary,
     onPrimary: AppColors.surface,
     primaryContainer: AppColors.primaryLight,
-    onPrimaryContainer: AppColors.primaryDark,
-    // Secondary — koyu pembe
-    secondary: AppColors.primaryDark,
+    onPrimaryContainer: AppColors.surface,
+    // Secondary — accent/gri
+    secondary: AppColors.accent,
     onSecondary: AppColors.surface,
-    secondaryContainer: AppColors.surfaceLight,
+    secondaryContainer: AppColors.surfaceAlt,
     onSecondaryContainer: AppColors.textPrimary,
-    // Tertiary — vurgu ton
-    tertiary: Color(0xFFFF6B9D),
+    // Tertiary
+    tertiary: AppColors.accent,
     onTertiary: AppColors.surface,
-    tertiaryContainer: Color(0xFFFFD6E7),
-    onTertiaryContainer: AppColors.primaryDark,
+    tertiaryContainer: AppColors.surfaceAlt,
+    onTertiaryContainer: AppColors.textPrimary,
     // Error
     error: AppColors.danger,
     onError: AppColors.surface,
@@ -141,13 +141,13 @@ class AppTheme {
     onSurfaceVariant: AppColors.textSecondary,
     // Outline
     outline: AppColors.primaryLight,
-    outlineVariant: Color(0xFFE8D0DB),
+    outlineVariant: AppColors.surfaceAlt,
     // Misc
-    shadow: Color(0x1AE91E8C),
-    scrim: Color(0x521A1A2E),
+    shadow: Color(0x1A000000),
+    scrim: Color(0x52000000),
     inverseSurface: AppColors.textPrimary,
     onInverseSurface: AppColors.surface,
-    inversePrimary: AppColors.primaryLight,
+    inversePrimary: AppColors.primaryMuted,
   );
 
   // ─────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ class AppTheme {
         // ── AppBar ──────────────────────────────────────────
         appBarTheme: AppBarTheme(
           backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.primaryDark,
+          foregroundColor: AppColors.primary,
           elevation: 0,
           scrolledUnderElevation: 1,
           shadowColor: AppColors.primaryLight.withValues(alpha: 0.5),
@@ -171,10 +171,10 @@ class AppTheme {
           titleTextStyle: GoogleFonts.nunito(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: AppColors.primaryDark,
+            color: AppColors.primary,
           ),
           iconTheme: const IconThemeData(
-            color: AppColors.primaryDark,
+            color: AppColors.primary,
             size: 24,
           ),
           actionsIconTheme: const IconThemeData(
@@ -186,7 +186,7 @@ class AppTheme {
         // ── Card ────────────────────────────────────────────
         cardTheme: const CardThemeData(
           color: AppColors.surface,
-          shadowColor: Color(0x14E91E8C),
+          shadowColor: Color(0x14000000),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(AppSpacing.md)),
@@ -255,15 +255,15 @@ class AppTheme {
         // ── Icon Button ─────────────────────────────────────
         iconButtonTheme: IconButtonThemeData(
           style: IconButton.styleFrom(
-            foregroundColor: AppColors.primaryDark,
-            highlightColor: AppColors.primaryLight.withValues(alpha: 0.3),
+            foregroundColor: AppColors.primary,
+            highlightColor: AppColors.surfaceAlt,
           ),
         ),
 
         // ── Input Decoration ────────────────────────────────
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: AppColors.surfaceLight,
+          fillColor: AppColors.surfaceAlt,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm + 6,
@@ -362,10 +362,10 @@ class AppTheme {
 
         // ── Chip ────────────────────────────────────────────
         chipTheme: ChipThemeData(
-          backgroundColor: AppColors.surfaceLight,
+          backgroundColor: AppColors.surfaceAlt,
           selectedColor: AppColors.primaryLight,
-          disabledColor: AppColors.surfaceLight,
-          deleteIconColor: AppColors.primaryDark,
+          disabledColor: AppColors.surfaceAlt,
+          deleteIconColor: AppColors.primary,
           labelStyle: GoogleFonts.dmSans(
             fontSize: 12,
             fontWeight: FontWeight.w500,
@@ -374,7 +374,7 @@ class AppTheme {
           secondaryLabelStyle: GoogleFonts.dmSans(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppColors.primaryDark,
+            color: AppColors.primary,
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm + 4,
@@ -404,14 +404,14 @@ class AppTheme {
           backgroundColor: AppColors.surface,
           surfaceTintColor: Colors.transparent,
           elevation: 8,
-          shadowColor: const Color(0x33E91E8C),
+          shadowColor: const Color(0x33000000),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.lg),
           ),
           titleTextStyle: GoogleFonts.nunito(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: AppColors.primaryDark,
+            color: AppColors.primary,
           ),
           contentTextStyle: GoogleFonts.dmSans(
             fontSize: 14,
@@ -469,7 +469,7 @@ class AppTheme {
             if (states.contains(WidgetState.selected)) {
               return AppColors.primary;
             }
-            return AppColors.surfaceLight;
+            return AppColors.surfaceAlt;
           }),
           trackOutlineColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
@@ -496,7 +496,7 @@ class AppTheme {
         popupMenuTheme: PopupMenuThemeData(
           color: AppColors.surface,
           elevation: 8,
-          shadowColor: const Color(0x1AE91E8C),
+          shadowColor: const Color(0x1A000000),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.sm + 4),
           ),

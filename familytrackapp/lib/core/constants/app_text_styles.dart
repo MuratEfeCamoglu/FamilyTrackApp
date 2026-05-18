@@ -14,7 +14,7 @@ class AppTextStyles {
   static TextStyle get h1 => GoogleFonts.nunito(
         fontSize: 28,
         fontWeight: FontWeight.w800,
-        color: AppColors.primaryDark,
+        color: AppColors.primary,
       );
 
   /// H2 — Bölüm başlığı
@@ -35,7 +35,7 @@ class AppTextStyles {
   static TextStyle get counter => GoogleFonts.nunito(
         fontSize: 64,
         fontWeight: FontWeight.w900,
-        color: AppColors.primaryDark,
+        color: AppColors.primary,
       );
 
   /// Etiket — küçük, vurgulu, büyük harf (chip, badge)

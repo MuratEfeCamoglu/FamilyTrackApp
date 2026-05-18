@@ -10,6 +10,7 @@ import 'package:familytrackapp/core/constants/app_strings.dart';
 import 'package:familytrackapp/core/constants/app_text_styles.dart';
 import 'package:familytrackapp/core/services/firebase_service.dart';
 import 'package:familytrackapp/features/calendar/presentation/cubit/calendar_cubit.dart';
+import 'package:familytrackapp/features/profile/domain/entities/person_entity.dart';
 import 'package:familytrackapp/features/profile/domain/entities/special_day_entity.dart';
 import 'package:familytrackapp/shared/widgets/loading_skeleton.dart';
 
@@ -52,6 +53,17 @@ class _CalendarView extends StatelessWidget {
             return CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(child: _CalendarHeader()),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: _PersonFilterChips(
+                      persons: state.persons,
+                      selectedId: state.selectedPersonId,
+                      onSelect: (id) =>
+                          context.read<CalendarCubit>().setPersonFilter(id),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(child: _MonthCalendar(state: state)),
                 // Seçili gün varsa o günün etkinlikleri, yoksa tümü
                 _SpecialDaysList(state: state),
@@ -109,13 +121,98 @@ class _CalendarHeader extends StatelessWidget {
               child: Text(
                 'Bugün',
                 style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primaryDark,
+                  color: AppColors.primary,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Filtre Çipleri
+// ─────────────────────────────────────────────────────────
+
+class _PersonFilterChips extends StatelessWidget {
+  const _PersonFilterChips({
+    required this.persons,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<Person> persons;
+  final String? selectedId;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (persons.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        children: [
+          _FilterChip(
+            label: 'Tümü',
+            isSelected: selectedId == null,
+            onTap: () => onSelect(null),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          ...persons.map(
+            (p) => Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: _FilterChip(
+                label: p.name,
+                isSelected: selectedId == p.id,
+                onTap: () => onSelect(p.id),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? null
+              : Border.all(color: AppColors.primaryLight, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: isSelected ? Colors.white : AppColors.primary,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -265,7 +362,7 @@ class _NavButton extends StatelessWidget {
           color: AppColors.primaryLight,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: AppColors.primaryDark, size: 20),
+        child: Icon(icon, color: AppColors.primary, size: 20),
       ),
     );
   }
@@ -313,7 +410,7 @@ class _DayCell extends StatelessWidget {
                 color: isSelected
                     ? Colors.white
                     : isToday
-                    ? AppColors.primaryDark
+                    ? AppColors.primary
                     : AppColors.textPrimary,
               ),
             ),
@@ -430,7 +527,7 @@ class _SpecialDayItem extends StatelessWidget {
               color: isToday
                   ? AppColors.primary
                   : isSoon
-                  ? AppColors.primaryDark
+                  ? AppColors.primary
                   : AppColors.primaryLight,
               borderRadius: BorderRadius.circular(AppSpacing.sm + 2),
             ),
@@ -478,8 +575,8 @@ class _SpecialDayItem extends StatelessWidget {
                   color: isToday
                       ? AppColors.primary
                       : isSoon
-                      ? AppColors.primaryDark
-                      : AppColors.surfaceLight,
+                      ? AppColors.primary
+                      : AppColors.surfaceAlt,
                   borderRadius: BorderRadius.circular(AppSpacing.xs + 2),
                 ),
                 child: Text(

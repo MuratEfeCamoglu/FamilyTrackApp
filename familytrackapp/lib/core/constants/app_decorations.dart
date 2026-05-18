@@ -13,10 +13,10 @@ class AppDecorations {
   // Gölgeler
   // ─────────────────────────────────────────────────────────
 
-  /// Kart için hafif pembe gölge
+  /// Kart için hafif nötr gölge
   static const List<BoxShadow> cardShadow = [
     BoxShadow(
-      color: Color(0x14E91E8C), // primary %8
+      color: Color(0x0A000000), // black %4
       blurRadius: 16,
       offset: Offset(0, 4),
       spreadRadius: 0,
@@ -26,13 +26,13 @@ class AppDecorations {
   /// Yüksek kart / modal gölge
   static const List<BoxShadow> elevatedShadow = [
     BoxShadow(
-      color: Color(0x1AE91E8C), // primary %10
+      color: Color(0x10000000), // black %6
       blurRadius: 32,
       offset: Offset(0, 8),
       spreadRadius: 0,
     ),
     BoxShadow(
-      color: Color(0x0A1A1A2E), // textPrimary %4
+      color: Color(0x05000000), // black %2
       blurRadius: 8,
       offset: Offset(0, 2),
       spreadRadius: 0,
@@ -42,7 +42,7 @@ class AppDecorations {
   /// BottomNav üst gölge
   static const List<BoxShadow> bottomNavShadow = [
     BoxShadow(
-      color: Color(0x1AE91E8C),
+      color: Color(0x08000000), // black %3
       blurRadius: 16,
       offset: Offset(0, -4),
       spreadRadius: 0,
@@ -52,7 +52,7 @@ class AppDecorations {
   /// FAB / Pill button gölge
   static const List<BoxShadow> pillShadow = [
     BoxShadow(
-      color: Color(0x33E91E8C), // primary %20
+      color: Color(0x15000000), // black %8
       blurRadius: 20,
       offset: Offset(0, 6),
       spreadRadius: 0,
@@ -72,7 +72,7 @@ class AppDecorations {
 
   /// Hafif pembe arka planlı kart (vurgu)
   static const BoxDecoration cardLight = BoxDecoration(
-    color: AppColors.surfaceLight,
+    color: AppColors.surfaceAlt,
     borderRadius: BorderRadius.all(Radius.circular(AppSpacing.md)),
   );
 
@@ -88,7 +88,7 @@ class AppDecorations {
   /// Hero / banner gradyan — pembe tonları
   static const BoxDecoration heroBanner = BoxDecoration(
     gradient: LinearGradient(
-      colors: [AppColors.primary, AppColors.primaryDark],
+      colors: [AppColors.primary, AppColors.primary],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
@@ -113,7 +113,7 @@ class AppDecorations {
 
   /// İkon arka planı — küçük yuvarlak kare
   static BoxDecoration iconBackground({
-    Color color = AppColors.surfaceLight,
+    Color color = AppColors.surfaceAlt,
     double radius = AppSpacing.sm,
   }) =>
       BoxDecoration(
@@ -143,7 +143,7 @@ class AppDecorations {
 
   /// Pembe → koyu pembe — ana CTA gradyanı
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [AppColors.primary, AppColors.primaryDark],
+    colors: [AppColors.primary, AppColors.primary],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

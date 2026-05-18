@@ -11,6 +11,7 @@ import 'package:familytrackapp/core/services/firebase_service.dart';
 import 'package:familytrackapp/features/profile/domain/entities/person_detail_entity.dart';
 import 'package:familytrackapp/features/profile/domain/entities/person_entity.dart';
 import 'package:familytrackapp/features/profile/presentation/cubit/person_detail_cubit.dart';
+import 'package:familytrackapp/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:familytrackapp/features/profile/presentation/widgets/info_card_widget.dart';
 import 'package:familytrackapp/shared/widgets/loading_skeleton.dart';
 
@@ -105,16 +106,22 @@ class _PersonSliverHeader extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 220,
       pinned: true,
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
+      backgroundColor: AppColors.background,
+      foregroundColor: AppColors.textPrimary,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.delete_outline),
+          onPressed: () => _confirmDeletePerson(context),
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
           person.name,
-          style: AppTextStyles.h2.copyWith(color: Colors.white),
+          style: AppTextStyles.h2.copyWith(color: AppColors.textPrimary),
         ),
         centerTitle: true,
         background: Container(
-          decoration: AppDecorations.heroBanner,
+          decoration: AppDecorations.softGradientBackground,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -123,14 +130,14 @@ class _PersonSliverHeader extends StatelessWidget {
                 width: 88,
                 height: 88,
                 decoration: const BoxDecoration(
-                  color: Colors.white24,
+                  color: AppColors.primaryLight,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
                     initials.toUpperCase(),
                     style: AppTextStyles.h1.copyWith(
-                      color: Colors.white,
+                      color: AppColors.primary,
                       fontSize: 30,
                     ),
                   ),
@@ -143,7 +150,7 @@ class _PersonSliverHeader extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -154,6 +161,43 @@ class _PersonSliverHeader extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _confirmDeletePerson(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kişiyi Sil'),
+        content: Text('${person.name} ve bu kişiye ait tüm anlar kalıcı olarak silinecek. Emin misin?'),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Vazgeç'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final userId = FirebaseService.currentUserId ?? '';
+              try {
+                final profileCubit = context.read<ProfileCubit>();
+                final success = await profileCubit.deletePerson(userId: userId, personId: person.id);
+                if (success && context.mounted) {
+                  Navigator.pop(context);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Silme işlemi başarısız oldu: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Sil'),
+          ),
+        ],
       ),
     );
   }

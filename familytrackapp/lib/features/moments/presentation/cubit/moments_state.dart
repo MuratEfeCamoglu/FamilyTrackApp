@@ -16,18 +16,38 @@ class MomentsLoading extends MomentsState {
 
 class MomentsLoaded extends MomentsState {
   const MomentsLoaded({
-    required this.moments,
+    required this.allMoments,
     required this.persons,
+    this.selectedPersonId,
   });
 
   /// Tüm anlar — tarihe göre azalan sıralı (en yeni üstte).
-  final List<Moment> moments;
+  final List<Moment> allMoments;
 
   /// An ekleme formundaki kişi seçici için.
   final List<Person> persons;
 
+  final String? selectedPersonId;
+
+  List<Moment> get moments => selectedPersonId == null
+      ? allMoments
+      : allMoments.where((m) => m.personId == selectedPersonId).toList();
+
+  MomentsLoaded copyWith({
+    List<Moment>? allMoments,
+    List<Person>? persons,
+    String? selectedPersonId,
+    bool clearSelectedPersonId = false,
+  }) {
+    return MomentsLoaded(
+      allMoments: allMoments ?? this.allMoments,
+      persons: persons ?? this.persons,
+      selectedPersonId: clearSelectedPersonId ? null : (selectedPersonId ?? this.selectedPersonId),
+    );
+  }
+
   @override
-  List<Object?> get props => [moments, persons];
+  List<Object?> get props => [allMoments, persons, selectedPersonId];
 }
 
 class MomentsError extends MomentsState {

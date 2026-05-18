@@ -13,6 +13,8 @@ import 'package:familytrackapp/features/profile/domain/entities/person_entity.da
 import 'package:familytrackapp/features/profile/presentation/cubit/person_detail_cubit.dart';
 import 'package:familytrackapp/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:familytrackapp/features/profile/presentation/pages/add_person_page.dart';
+import 'package:familytrackapp/features/profile/presentation/pages/person_detail_page.dart';
+import 'package:familytrackapp/features/today/presentation/cubit/today_cubit.dart';
 import 'package:familytrackapp/shared/widgets/loading_skeleton.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -23,8 +25,9 @@ class ProfilePage extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => GetIt.I<ProfileCubit>()
-            ..loadPersons(userId: FirebaseService.currentUserId ?? ''),
+          create: (_) =>
+              GetIt.I<ProfileCubit>()
+                ..loadPersons(userId: FirebaseService.currentUserId ?? ''),
         ),
         BlocProvider(create: (_) => GetIt.I<PersonDetailCubit>()),
       ],
@@ -60,6 +63,10 @@ class _ProfileViewState extends State<_ProfileView> {
               } else {
                 setState(() => _selectedPerson = null);
               }
+              // Synchronize TodayCubit whenever profile state updates
+              context.read<TodayCubit>().initialize(
+                FirebaseService.currentUserId ?? '',
+              );
             }
             // Hata durumunu kullanıcıya göster
             if (state is ProfileError) {
@@ -73,7 +80,10 @@ class _ProfileViewState extends State<_ProfileView> {
           },
           builder: (context, state) {
             if (state is ProfileLoading || state is ProfileInitial) {
-              return const PageLoadingSkeleton(showHeroCard: true, itemCount: 4);
+              return const PageLoadingSkeleton(
+                showHeroCard: true,
+                itemCount: 4,
+              );
             }
             if (state is ProfileError && _selectedPerson == null) {
               return _ErrorView(message: state.message);
@@ -96,9 +106,11 @@ class _ProfileViewState extends State<_ProfileView> {
               foregroundColor: Colors.white,
               onPressed: () => _showAddDetailSheet(context),
               child: const Icon(Icons.add_rounded, size: 30),
+            ).animate().scale(
+              delay: 300.ms,
+              duration: 500.ms,
+              curve: Curves.elasticOut,
             )
-              .animate()
-              .scale(delay: 300.ms, duration: 500.ms, curve: Curves.elasticOut)
           : null,
     );
   }
@@ -106,9 +118,9 @@ class _ProfileViewState extends State<_ProfileView> {
   void _selectPerson(Person person) {
     setState(() => _selectedPerson = person);
     context.read<PersonDetailCubit>().loadDetails(
-          userId: FirebaseService.currentUserId ?? '',
-          person: person,
-        );
+      userId: FirebaseService.currentUserId ?? '',
+      person: person,
+    );
   }
 
   void _navigateToAddPerson(BuildContext context) {
@@ -116,12 +128,28 @@ class _ProfileViewState extends State<_ProfileView> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        builder: (_) =>
+            BlocProvider.value(value: cubit, child: const AddPersonPage()),
+      ),
+    );
+  }
+
+  void _navigateToPersonDetail(BuildContext context, Person person) async {
+    final cubit = context.read<ProfileCubit>();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: cubit,
-          child: const AddPersonPage(),
+          child: PersonDetailPage(person: person),
         ),
       ),
     );
+    if (mounted) {
+      context.read<ProfileCubit>().loadPersons(
+        userId: FirebaseService.currentUserId ?? '',
+      );
+    }
   }
 
   Widget _buildContent(BuildContext context, List<Person> persons) {
@@ -131,17 +159,17 @@ class _ProfileViewState extends State<_ProfileView> {
       color: AppColors.primary,
       onRefresh: () async {
         await context.read<ProfileCubit>().loadPersons(
-              userId: FirebaseService.currentUserId ?? '',
-            );
+          userId: FirebaseService.currentUserId ?? '',
+        );
       },
       child: CustomScrollView(
         slivers: [
           // ── Header: Avatar + Ad + İlişki + Ayarlar ────────
           SliverToBoxAdapter(
-            child: _ProfileHeader(person: _selectedPerson!)
-                .animate()
-                .fade(duration: 400.ms)
-                .slideY(begin: -0.1, end: 0, curve: Curves.easeOutQuad),
+            child: _ProfileHeader(
+              person: _selectedPerson!,
+              onSettingsPressed: () => _navigateToPersonDetail(context, _selectedPerson!),
+            ),
           ),
 
           // ── Kişi Seçici ──────────────────────────────────
@@ -152,7 +180,8 @@ class _ProfileViewState extends State<_ProfileView> {
                 persons: persons,
                 selectedPersonId: _selectedPerson!.id,
                 onSelect: _selectPerson,
-              ).animate().fade(delay: 100.ms, duration: 400.ms),
+                onLongPress: (p) => _confirmDeletePerson(context, p),
+              ),
             ),
           ),
 
@@ -160,11 +189,13 @@ class _ProfileViewState extends State<_ProfileView> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
               child: _ActionButtonsRow(
-                onEdit: () {},
+                onEdit: () => _navigateToPersonDetail(context, _selectedPerson!),
                 onAddPerson: () => _navigateToAddPerson(context),
-              ).animate().fade(delay: 200.ms, duration: 400.ms),
+              ),
             ),
           ),
 
@@ -179,8 +210,10 @@ class _ProfileViewState extends State<_ProfileView> {
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.xl),
                     child: Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.primary)),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 );
               }
@@ -217,23 +250,17 @@ class _ProfileViewState extends State<_ProfileView> {
                     mainAxisSpacing: AppSpacing.md,
                     childAspectRatio: 0.95,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final detail = details[index];
-                      return GestureDetector(
-                        onLongPress: () =>
-                            _confirmDeleteDetail(context, detail),
-                        child: _BentoCard(detail: detail),
-                      )
-                          .animate(delay: (50 * index).ms)
-                          .fade(duration: 400.ms)
-                          .slideY(
-                              begin: 0.1,
-                              end: 0,
-                              curve: Curves.easeOutQuad);
-                    },
-                    childCount: details.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final detail = details[index];
+                    final isTemp = detail.id.startsWith('temp_');
+                    return GestureDetector(
+                      onTap: () => _showAddDetailSheet(context, detail: detail),
+                      onLongPress: isTemp
+                          ? null
+                          : () => _confirmDeleteDetail(context, detail),
+                      child: _BentoCard(detail: detail),
+                    );
+                  }, childCount: details.length),
                 ),
               );
             },
@@ -245,14 +272,14 @@ class _ProfileViewState extends State<_ProfileView> {
     );
   }
 
-  void _showAddDetailSheet(BuildContext context) {
+  void _showAddDetailSheet(BuildContext context, {PersonDetail? detail}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => BlocProvider.value(
         value: context.read<PersonDetailCubit>(),
-        child: const _AddDetailSheet(),
+        child: _AddDetailSheet(detail: detail),
       ),
     );
   }
@@ -272,11 +299,37 @@ class _ProfileViewState extends State<_ProfileView> {
             onPressed: () {
               Navigator.pop(ctx);
               context.read<PersonDetailCubit>().deleteDetail(
-                    userId: FirebaseService.currentUserId ?? '',
-                    detailId: detail.id,
-                  );
+                userId: FirebaseService.currentUserId ?? '',
+                detailId: detail.id,
+              );
             },
             child: Text('Sil', style: TextStyle(color: Colors.red.shade400)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeletePerson(BuildContext context, Person person) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kişiyi Sil'),
+        content: Text('${person.name} ve bu kişiye ait tüm anlar kalıcı olarak silinecek. Emin misin?'),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Vazgeç'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final userId = FirebaseService.currentUserId ?? '';
+              final profileCubit = context.read<ProfileCubit>();
+              await profileCubit.deletePerson(userId: userId, personId: person.id);
+            },
+            child: const Text('Sil'),
           ),
         ],
       ),
@@ -289,8 +342,13 @@ class _ProfileViewState extends State<_ProfileView> {
 // ─────────────────────────────────────────────────────────
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.person});
+  const _ProfileHeader({
+    required this.person,
+    required this.onSettingsPressed,
+  });
+
   final Person person;
+  final VoidCallback onSettingsPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -300,13 +358,17 @@ class _ProfileHeader extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.sm),
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
           Container(
-            width: 56,
-            height: 56,
+            width: 48,
+            height: 48,
             decoration: const BoxDecoration(
               color: AppColors.primaryLight,
               shape: BoxShape.circle,
@@ -314,19 +376,23 @@ class _ProfileHeader extends StatelessWidget {
             child: Center(
               child: Text(
                 initials.toUpperCase(),
-                style: AppTextStyles.h2.copyWith(color: AppColors.primaryDark),
+                style: AppTextStyles.h3.copyWith(color: AppColors.primary),
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
-          // Ad + İlişki
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(person.name,
-                    style: AppTextStyles.h1.copyWith(
-                        fontSize: 22, color: AppColors.primaryDark)),
+                Text(
+                  person.name,
+                  style: AppTextStyles.h1.copyWith(
+                    fontSize: 25,
+                    color: AppColors.primary,
+                  ),
+                ),
                 Text(
                   person.relationshipType.label.toUpperCase(),
                   style: AppTextStyles.caption.copyWith(
@@ -339,9 +405,12 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.settings_outlined,
-                color: AppColors.textSecondary, size: 26),
+            onPressed: onSettingsPressed,
+            icon: const Icon(
+              Icons.settings_outlined,
+              color: AppColors.textSecondary,
+              size: 28,
+            ),
           ),
         ],
       ),
@@ -358,16 +427,18 @@ class _PersonSelector extends StatelessWidget {
     required this.persons,
     required this.selectedPersonId,
     required this.onSelect,
+    this.onLongPress,
   });
 
   final List<Person> persons;
   final String selectedPersonId;
   final ValueChanged<Person> onSelect;
+  final ValueChanged<Person>? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 44,
+      height: 48,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         scrollDirection: Axis.horizontal,
@@ -378,18 +449,31 @@ class _PersonSelector extends StatelessWidget {
           final isActive = person.id == selectedPersonId;
           return GestureDetector(
             onTap: () => onSelect(person),
+            onLongPress: () => onLongPress?.call(person),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              padding: const EdgeInsets.symmetric(horizontal: 22),
               decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : Colors.transparent,
+                color: isActive ? AppColors.primary : AppColors.surface,
                 borderRadius: BorderRadius.circular(24),
+                border: isActive
+                    ? null
+                    : Border.all(color: AppColors.primaryLight, width: 1.2),
+                boxShadow: isActive
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x15000000),
+                          blurRadius: 16,
+                          offset: Offset(0, 6),
+                        ),
+                      ]
+                    : null,
               ),
               alignment: Alignment.center,
               child: Text(
                 person.name,
                 style: AppTextStyles.bodyBold.copyWith(
-                  color: isActive ? Colors.white : AppColors.primaryDark,
+                  color: isActive ? Colors.white : AppColors.primary,
                   fontSize: 15,
                 ),
               ),
@@ -413,37 +497,42 @@ class _ActionButtonsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         OutlinedButton.icon(
           onPressed: onEdit,
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primaryDark,
-            side: const BorderSide(color: AppColors.primaryDark, width: 1.2),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary, width: 1.3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
           icon: const Icon(Icons.edit_outlined, size: 18),
-          label: const Text('Düzenle',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          label: const Text(
+            'Düzenle',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
         const SizedBox(width: AppSpacing.sm),
         ElevatedButton.icon(
           onPressed: onAddPerson,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryDark,
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30)),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
           icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-          label: const Text('Yeni Kişi Ekle',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          label: const Text(
+            'Yeni Kişi Ekle',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );
@@ -460,35 +549,35 @@ class _BentoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAlert = detail.key.toLowerCase().contains('önemli') ||
+    final isAlert =
+        detail.key.toLowerCase().contains('önemli') ||
         detail.key.toLowerCase().contains('alerji');
 
-    final iconBgColor =
-        isAlert ? const Color(0xFFFFDAD6) : AppColors.primaryLight;
-    final keyColor =
-        isAlert ? const Color(0xFFBA1A1A) : AppColors.textSecondary;
+    final iconBgColor = isAlert
+        ? const Color(0xFFFFDAD6)
+        : AppColors.primaryLight;
+    final keyColor = isAlert
+        ? const Color(0xFFBA1A1A)
+        : AppColors.textSecondary;
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border:
-            isAlert ? Border.all(color: const Color(0xFFFFDAD6), width: 1.5) : null,
+        color: isAlert ? const Color(0xFFFFF3F1) : AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(28),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0AE91E8C),
+            color: Color(0x0A000000),
             blurRadius: 20,
-            offset: Offset(0, 4),
+            offset: Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // İkon dairesi
           Container(
-            width: 52,
-            height: 52,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: iconBgColor,
               shape: BoxShape.circle,
@@ -500,15 +589,14 @@ class _BentoCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          // Başlık (küçük caps)
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
               detail.key.toUpperCase(),
               style: AppTextStyles.caption.copyWith(
                 color: keyColor,
-                letterSpacing: 1.2,
+                letterSpacing: 1.1,
                 fontWeight: FontWeight.w700,
                 fontSize: 10,
               ),
@@ -518,20 +606,34 @@ class _BentoCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          // Değer (büyük ve bold)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: Text(
-              detail.value,
-              style: AppTextStyles.bodyBold.copyWith(
-                color: AppColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: detail.value.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '+ Ekle',
+                      style: AppTextStyles.bodyBold.copyWith(
+                        color: AppColors.primaryMuted,
+                        fontSize: 14,
+                      ),
+                    ),
+                  )
+                : Text(
+                    detail.value,
+                    style: AppTextStyles.bodyBold.copyWith(
+                      color: AppColors.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
           ),
         ],
       ),
@@ -544,7 +646,8 @@ class _BentoCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────
 
 class _AddDetailSheet extends StatefulWidget {
-  const _AddDetailSheet();
+  const _AddDetailSheet({this.detail});
+  final PersonDetail? detail;
 
   @override
   State<_AddDetailSheet> createState() => _AddDetailSheetState();
@@ -578,6 +681,16 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.detail != null) {
+      _keyController.text = widget.detail!.key;
+      _valueController.text = widget.detail!.value;
+      _selectedIcon = widget.detail!.icon ?? '💬';
+    }
+  }
+
+  @override
   void dispose() {
     _keyController.dispose();
     _valueController.dispose();
@@ -587,9 +700,14 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final isEdit = widget.detail != null;
     return Container(
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg + bottom),
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg + bottom,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -610,71 +728,77 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Yeni Bilgi Ekle', style: AppTextStyles.h2),
+            Text(isEdit ? 'Bilgiyi Düzenle' : 'Yeni Bilgi Ekle', style: AppTextStyles.h2),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Hazır kategorilerden seçin ya da kendiniz yazın',
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Hazır kategori butonları
-            Text('Hızlı Kategori', style: AppTextStyles.label),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: _presetCategories.map((cat) {
-                final isSelected = _selectedIcon == cat['icon'] &&
-                    _keyController.text == cat['label'];
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedIcon = cat['icon']!;
-                      _keyController.text = cat['label']!;
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryLight
-                          : AppColors.background,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
+            if (!isEdit) ...[
+              Text(
+                'Hazır kategorilerden seçin ya da kendiniz yazın',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Hızlı Kategori', style: AppTextStyles.label),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: _presetCategories.map((cat) {
+                  final isSelected =
+                      _selectedIcon == cat['icon'] &&
+                      _keyController.text == cat['label'];
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedIcon = cat['icon']!;
+                        _keyController.text = cat['label']!;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.primaryLight,
-                        width: 1.5,
+                            ? AppColors.primaryLight
+                            : AppColors.background,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.primaryLight,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        '${cat['icon']} ${cat['label']}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
                       ),
                     ),
-                    child: Text(
-                      '${cat['icon']} ${cat['label']}',
-                      style: AppTextStyles.caption.copyWith(
-                        color: isSelected
-                            ? AppColors.primaryDark
-                            : AppColors.textPrimary,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: AppSpacing.lg),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
 
             // Manuel giriş
             Text('Bilgi Başlığı', style: AppTextStyles.label),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _keyController,
+              enabled: !isEdit, // isEdit modunda başlık değiştirilmez
               decoration: const InputDecoration(
-                  hintText: 'Örn: Favori Çiçek, Kan Grubu'),
+                hintText: 'Örn: Favori Çiçek, Kan Grubu',
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -682,8 +806,9 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _valueController,
-              decoration:
-                  const InputDecoration(hintText: 'Örn: Papatya, A Rh+'),
+              decoration: const InputDecoration(
+                hintText: 'Örn: Papatya, A Rh+',
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
 
@@ -696,8 +821,11 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Ekle'),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(isEdit ? 'Kaydet' : 'Ekle'),
               ),
             ),
           ],
@@ -711,22 +839,64 @@ class _AddDetailSheetState extends State<_AddDetailSheet> {
     final value = _valueController.text.trim();
     if (key.isEmpty || value.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen tüm alanları doldurun.')));
+        const SnackBar(content: Text('Lütfen tüm alanları doldurun.')),
+      );
       return;
     }
     setState(() => _isSaving = true);
-    final detail = PersonDetail(
-      id: '',
-      personId: '',
-      key: key,
-      value: value,
-      icon: _selectedIcon,
-      createdAt: DateTime.now(),
-    );
-    await context.read<PersonDetailCubit>().addDetail(
+    
+    if (widget.detail != null) {
+      // Düzenleme veya geçici kategoriyi doldurma
+      if (widget.detail!.id.startsWith('temp_')) {
+        // Bu geçici bir kategoridir, ilk kez değer ekleniyor -> Doğrudan Ekleme işlemi yap
+        final detail = PersonDetail(
+          id: '',
+          personId: widget.detail!.personId,
+          key: key,
+          value: value,
+          icon: _selectedIcon,
+          createdAt: DateTime.now(),
+        );
+        await context.read<PersonDetailCubit>().addDetail(
           userId: FirebaseService.currentUserId ?? '',
           detail: detail,
         );
+      } else {
+        // Gerçekten var olan bir detayı düzenleme -> Sil ve yeniden Ekle
+        await context.read<PersonDetailCubit>().deleteDetail(
+          userId: FirebaseService.currentUserId ?? '',
+          detailId: widget.detail!.id,
+        );
+        if (!mounted) return;
+        final newDetail = PersonDetail(
+          id: '',
+          personId: widget.detail!.personId,
+          key: key,
+          value: value,
+          icon: _selectedIcon,
+          createdAt: widget.detail!.createdAt,
+        );
+        await context.read<PersonDetailCubit>().addDetail(
+          userId: FirebaseService.currentUserId ?? '',
+          detail: newDetail,
+        );
+      }
+    } else {
+      // Tamamen yeni serbest bilgi ekleme
+      final detail = PersonDetail(
+        id: '',
+        personId: '', // cubit will set this based on selected person
+        key: key,
+        value: value,
+        icon: _selectedIcon,
+        createdAt: DateTime.now(),
+      );
+      await context.read<PersonDetailCubit>().addDetail(
+        userId: FirebaseService.currentUserId ?? '',
+        detail: detail,
+      );
+    }
+    
     if (mounted) Navigator.pop(context);
   }
 }
@@ -754,16 +924,20 @@ class _EmptyView extends StatelessWidget {
                 color: AppColors.primaryLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.people_outline_rounded,
-                  size: 52, color: AppColors.primary),
+              child: const Icon(
+                Icons.people_outline_rounded,
+                size: 52,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Henüz kimse yok', style: AppTextStyles.h2),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Sevdiklerinizi ekleyerek anılarınızı kaydetmeye başlayın.',
-              style:
-                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -795,12 +969,19 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 52, color: AppColors.primary),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 52,
+              color: AppColors.primary,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text('Hata', style: AppTextStyles.h2),
             const SizedBox(height: AppSpacing.sm),
-            Text(message, style: AppTextStyles.body, textAlign: TextAlign.center),
+            Text(
+              message,
+              style: AppTextStyles.body,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

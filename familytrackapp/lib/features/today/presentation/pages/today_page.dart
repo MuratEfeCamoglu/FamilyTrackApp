@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:familytrackapp/core/constants/app_colors.dart';
+import 'package:familytrackapp/core/constants/app_decorations.dart';
 import 'package:familytrackapp/core/constants/app_enums.dart';
 import 'package:familytrackapp/core/constants/app_spacing.dart';
 import 'package:familytrackapp/core/constants/app_text_styles.dart';
@@ -39,32 +40,45 @@ class _TodayLoadedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final upcomingDays = state.upcomingDays;
+    final todaysEvents = upcomingDays.where((d) => d.daysUntilNext == 0).toList();
+    final futureEvents = upcomingDays.where((d) => d.daysUntilNext > 0).toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        child: const Icon(Icons.add_rounded, size: 34),
+        child: const Icon(Icons.add_rounded, size: 32),
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: () => context.read<TodayCubit>().refresh(
-              FirebaseService.currentUserId ?? '',
-            ),
+          FirebaseService.currentUserId ?? '',
+        ),
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: _TodayHeader(
-                state: state,
-                onPersonTap: () => _showPersonPicker(context, state),
+            SliverToBoxAdapter(child: _TodayHeader(state: state)),
+            if (todaysEvents.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                  ),
+                  child: _TodaysEventCard(event: todaysEvents.first),
+                ),
               ),
-            ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
                 child: _DaysCounterCard(person: state.selectedPerson),
               ),
@@ -79,46 +93,42 @@ class _TodayLoadedView extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Text('Yaklasanlar', style: AppTextStyles.h2),
+                    Text('Yaklaşanlar', style: AppTextStyles.h2),
                     const Spacer(),
-                    Text(
-                      '+ EKLE',
-                      style: AppTextStyles.label.copyWith(
-                        color: AppColors.primary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
+                    TextButton(
+                      onPressed: () {},
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        '+ EKLE',
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.primary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (_, i) => _UpcomingDayItem(day: state.upcomingDays[i]),
-                  childCount: state.upcomingDays.length,
+            if (futureEvents.isEmpty)
+              const SliverToBoxAdapter(child: _EmptyUpcomingView())
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (_, i) => _UpcomingDayItem(day: futureEvents[i]),
+                    childCount: futureEvents.length,
+                  ),
                 ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl * 4)),
+            const SliverToBoxAdapter(child: SizedBox(height: 120)),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _showPersonPicker(BuildContext context, TodayLoaded state) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider.value(
-        value: context.read<TodayCubit>(),
-        child: _PersonPickerSheet(
-          persons: state.allPersons,
-          selectedId: state.selectedPerson.id,
         ),
       ),
     );
@@ -126,9 +136,8 @@ class _TodayLoadedView extends StatelessWidget {
 }
 
 class _TodayHeader extends StatelessWidget {
-  const _TodayHeader({required this.state, required this.onPersonTap});
+  const _TodayHeader({required this.state});
   final TodayLoaded state;
-  final VoidCallback onPersonTap;
 
   @override
   Widget build(BuildContext context) {
@@ -143,32 +152,31 @@ class _TodayHeader extends StatelessWidget {
         AppSpacing.md,
         top + AppSpacing.sm,
         AppSpacing.md,
-        AppSpacing.md,
+        AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: onPersonTap,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryLight,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  initials.toUpperCase(),
-                  style: AppTextStyles.h3.copyWith(color: AppColors.primary),
-                ),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                initials.toUpperCase(),
+                style: AppTextStyles.h3.copyWith(color: AppColors.primary),
               ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Bugun', style: AppTextStyles.h1),
+              Text('Bugün', style: AppTextStyles.h1.copyWith(fontSize: 26)),
               Text(
                 person.relationshipType.label,
                 style: AppTextStyles.body.copyWith(
@@ -179,7 +187,14 @@ class _TodayHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          const Icon(Icons.settings_outlined, color: AppColors.textSecondary, size: 30),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.settings_outlined,
+              color: AppColors.textSecondary,
+              size: 28,
+            ),
+          ),
         ],
       ),
     );
@@ -196,46 +211,62 @@ class _DaysCounterCard extends StatelessWidget {
     final monthNames = [
       '',
       'Ocak',
-      'Subat',
+      'Şubat',
       'Mart',
       'Nisan',
-      'Mayis',
+      'Mayıs',
       'Haziran',
       'Temmuz',
-      'Agustos',
-      'Eylul',
+      'Ağustos',
+      'Eylül',
       'Ekim',
-      'Kasim',
-      'Aralik',
+      'Kasım',
+      'Aralık',
     ];
-    final start = '${person.startDate.day} ${monthNames[person.startDate.month]} ${person.startDate.year}';
+    final start =
+        '${person.startDate.day} ${monthNames[person.startDate.month]} ${person.startDate.year}';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl, horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        vertical: 28,
+        horizontal: AppSpacing.lg,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(34),
+        gradient: const LinearGradient(
+          colors: [AppColors.surface, AppColors.background],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(36),
+        boxShadow: AppDecorations.elevatedShadow,
       ),
       child: Column(
         children: [
           Text(
-            'BIRLIKTE GECEN',
+            'BİRLİKTE GEÇEN',
             style: AppTextStyles.label.copyWith(
               color: AppColors.textPrimary,
-              fontSize: 28,
-              letterSpacing: 2,
+              fontSize: 13,
+              letterSpacing: 2.4,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: 8),
           Text(
             '$days',
-            style: AppTextStyles.counter.copyWith(fontSize: 84, color: AppColors.primary),
+            style: AppTextStyles.counter.copyWith(
+              fontSize: 80,
+              color: AppColors.primary,
+              height: 1,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 10),
           Text(
             '$start\'dan beri',
-            style: AppTextStyles.h3.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.h3.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           OutlinedButton.icon(
@@ -243,9 +274,86 @@ class _DaysCounterCard extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: AppColors.primary, width: 1.5),
               foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             ),
             icon: const Icon(Icons.share, size: 18),
-            label: Text('Paylas', style: AppTextStyles.h3.copyWith(color: AppColors.primary)),
+            label: Text(
+              'Paylaş',
+              style: AppTextStyles.h3.copyWith(
+                color: AppColors.primary,
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodaysEventCard extends StatelessWidget {
+  const _TodaysEventCard({required this.event});
+  final SpecialDay event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        vertical: 24,
+        horizontal: AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppColors.primaryLight, width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000), // very soft neutral shadow
+            blurRadius: 22,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              event.type.emoji,
+              style: const TextStyle(fontSize: 48),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'BUGÜN!',
+            style: AppTextStyles.label.copyWith(
+              color: AppColors.primary,
+              fontSize: 14,
+              letterSpacing: 2.4,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            event.title,
+            style: AppTextStyles.h2.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 28,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            event.type.label,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 16,
+            ),
           ),
         ],
       ),
@@ -263,17 +371,17 @@ class _UpcomingDayItem extends StatelessWidget {
     final monthNames = [
       '',
       'Ocak',
-      'Subat',
+      'Şubat',
       'Mart',
       'Nisan',
-      'Mayis',
+      'Mayıs',
       'Haziran',
       'Temmuz',
-      'Agustos',
-      'Eylul',
+      'Ağustos',
+      'Eylül',
       'Ekim',
-      'Kasim',
-      'Aralik',
+      'Kasım',
+      'Aralık',
     ];
 
     return Container(
@@ -281,7 +389,14 @@ class _UpcomingDayItem extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 22,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -298,19 +413,32 @@ class _UpcomingDayItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(day.title, style: AppTextStyles.h3.copyWith(fontSize: 40)),
+                Text(
+                  day.title,
+                  style: AppTextStyles.h3.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 Text(
                   '${day.date.day} ${monthNames[day.date.month]}',
-                  style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
           ),
           Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 '$remaining',
-                style: AppTextStyles.h1.copyWith(color: AppColors.primary, fontSize: 56),
+                style: AppTextStyles.h1.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 38,
+                ),
               ),
               Text(
                 'KALDI',
@@ -321,54 +449,6 @@ class _UpcomingDayItem extends StatelessWidget {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PersonPickerSheet extends StatelessWidget {
-  const _PersonPickerSheet({required this.persons, required this.selectedId});
-
-  final List<Person> persons;
-  final String selectedId;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.lg)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Kisi Sec', style: AppTextStyles.h2),
-          const SizedBox(height: AppSpacing.md),
-          ...persons.map((person) {
-            final isSelected = person.id == selectedId;
-            final initials = person.name.isNotEmpty
-                ? person.name.trim().split(' ').map((w) => w[0]).take(2).join()
-                : '?';
-            return ListTile(
-              onTap: () {
-                context.read<TodayCubit>().selectPerson(
-                      FirebaseService.currentUserId ?? '',
-                      person,
-                    );
-                Navigator.pop(context);
-              },
-              leading: CircleAvatar(
-                backgroundColor: isSelected ? AppColors.primary : AppColors.primaryLight,
-                child: Text(initials.toUpperCase()),
-              ),
-              title: Text(person.name, style: AppTextStyles.bodyBold),
-              subtitle: Text(person.relationshipType.label, style: AppTextStyles.caption),
-              trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.primary) : null,
-            );
-          }),
         ],
       ),
     );
@@ -388,9 +468,13 @@ class _NoPersonsView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.people_outline_rounded, size: 56, color: AppColors.primary),
+              const Icon(
+                Icons.people_outline_rounded,
+                size: 56,
+                color: AppColors.primary,
+              ),
               const SizedBox(height: AppSpacing.md),
-              Text('Henuz kimse yok', style: AppTextStyles.h2),
+              Text('Henüz kimse yok', style: AppTextStyles.h2),
             ],
           ),
         ),
@@ -413,13 +497,56 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 52, color: AppColors.primary),
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 52,
+                color: AppColors.primary,
+              ),
               const SizedBox(height: AppSpacing.md),
               Text('Hata', style: AppTextStyles.h2),
               const SizedBox(height: AppSpacing.sm),
-              Text(message, style: AppTextStyles.body, textAlign: TextAlign.center),
+              Text(
+                message,
+                style: AppTextStyles.body,
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyUpcomingView extends StatelessWidget {
+  const _EmptyUpcomingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 22,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Text(
+          'Henüz yaklaşan gün yok.',
+          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
         ),
       ),
     );

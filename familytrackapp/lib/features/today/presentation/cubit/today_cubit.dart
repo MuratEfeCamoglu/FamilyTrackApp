@@ -8,6 +8,7 @@ import 'package:familytrackapp/features/profile/domain/entities/person_entity.da
 import 'package:familytrackapp/features/profile/domain/entities/special_day_entity.dart';
 import 'package:familytrackapp/features/profile/domain/usecases/get_persons_usecase.dart';
 import 'package:familytrackapp/features/profile/domain/usecases/special_day_usecases.dart';
+import 'package:familytrackapp/core/utils/national_holidays.dart';
 
 part 'today_state.dart';
 
@@ -88,8 +89,11 @@ class TodayCubit extends Cubit<TodayState> {
     final days = daysResult.fold((_) => <SpecialDay>[], (d) => d);
     final moments = momentsResult.fold((_) => <Moment>[], (m) => m);
 
+    final nationalHolidays = NationalHolidays.getHolidaysForYear(DateTime.now().year);
+    final allDays = [...days, ...nationalHolidays];
+
     // daysUntilNext'e göre sırala, max 5
-    final upcomingDays = (List<SpecialDay>.from(days)
+    final upcomingDays = (List<SpecialDay>.from(allDays)
           ..sort((a, b) => a.daysUntilNext.compareTo(b.daysUntilNext)))
         .take(5)
         .toList();

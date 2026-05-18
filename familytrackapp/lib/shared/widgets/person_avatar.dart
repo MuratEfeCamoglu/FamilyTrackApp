@@ -108,7 +108,7 @@ class _InitialsText extends StatelessWidget {
     return Text(
       initials,
       style: AppTextStyles.h3.copyWith(
-        color: AppColors.primaryDark,
+        color: AppColors.primary,
         fontSize: radius * 0.65,
       ),
     );

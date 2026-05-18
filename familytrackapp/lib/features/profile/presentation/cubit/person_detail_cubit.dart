@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:familytrackapp/core/constants/default_categories.dart';
 import 'package:familytrackapp/features/profile/domain/entities/person_entity.dart';
 import 'package:familytrackapp/features/profile/domain/entities/person_detail_entity.dart';
 import 'package:familytrackapp/features/profile/domain/usecases/person_detail_usecases.dart';
@@ -21,6 +22,32 @@ class PersonDetailCubit extends Cubit<PersonDetailState> {
   final AddPersonDetailUseCase addPersonDetailUseCase;
   final DeletePersonDetailUseCase deletePersonDetailUseCase;
 
+  // ── Yardımcı Kategoriler Birleştirme ─────────────────
+
+  List<PersonDetail> _mergeWithDefaultCategories(Person person, List<PersonDetail> details) {
+    final merged = <PersonDetail>[...details];
+    for (var item in DefaultCategories.items) {
+      final label = item['label']!;
+      final icon = item['icon']!;
+      final key = item['key']!;
+      
+      // Eğer bu etiketle bir detay zaten yoksa, geçici boş bir detay ekle
+      if (!merged.any((d) => d.key.toLowerCase() == label.toLowerCase())) {
+        merged.add(
+          PersonDetail(
+            id: 'temp_$key', // geçici ID
+            personId: person.id,
+            key: label,
+            value: '',
+            icon: icon,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+    }
+    return merged;
+  }
+
   // ── Yükleme ───────────────────────────────────────────
 
   Future<void> loadDetails({
@@ -33,7 +60,10 @@ class PersonDetailCubit extends Cubit<PersonDetailState> {
     );
     result.fold(
       (failure) => emit(PersonDetailError(message: failure.message)),
-      (details) => emit(PersonDetailLoaded(person: person, details: details)),
+      (details) {
+        final merged = _mergeWithDefaultCategories(person, details);
+        emit(PersonDetailLoaded(person: person, details: merged));
+      },
     );
   }
 
@@ -55,11 +85,15 @@ class PersonDetailCubit extends Cubit<PersonDetailState> {
     );
     result.fold(
       (failure) => emit(PersonDetailError(message: failure.message)),
-      (newDetail) => emit(PersonDetailActionSuccess(
-        person: current.person,
-        details: [...current.details, newDetail],
-        successMessage: 'Bilgi eklendi.',
-      )),
+      (newDetail) {
+        final newRealDetails = [...current.details, newDetail];
+        final merged = _mergeWithDefaultCategories(current.person, newRealDetails);
+        emit(PersonDetailActionSuccess(
+          person: current.person,
+          details: merged,
+          successMessage: 'Bilgi eklendi.',
+        ));
+      },
     );
   }
 
@@ -81,11 +115,15 @@ class PersonDetailCubit extends Cubit<PersonDetailState> {
     );
     result.fold(
       (failure) => emit(PersonDetailError(message: failure.message)),
-      (_) => emit(PersonDetailActionSuccess(
-        person: current.person,
-        details: current.details.where((d) => d.id != detailId).toList(),
-        successMessage: 'Bilgi silindi.',
-      )),
+      (_) {
+        final remainingReal = current.details.where((d) => d.id != detailId).toList();
+        final merged = _mergeWithDefaultCategories(current.person, remainingReal);
+        emit(PersonDetailActionSuccess(
+          person: current.person,
+          details: merged,
+          successMessage: 'Bilgi silindi.',
+        ));
+      },
     );
   }
 
@@ -93,9 +131,17 @@ class PersonDetailCubit extends Cubit<PersonDetailState> {
 
   PersonDetailLoaded? get _current {
     final s = state;
-    if (s is PersonDetailLoaded) return s;
+    if (s is PersonDetailLoaded) {
+      return PersonDetailLoaded(
+        person: s.person,
+        details: s.details.where((d) => !d.id.startsWith('temp_')).toList(),
+      );
+    }
     if (s is PersonDetailActionSuccess) {
-      return PersonDetailLoaded(person: s.person, details: s.details);
+      return PersonDetailLoaded(
+        person: s.person,
+        details: s.details.where((d) => !d.id.startsWith('temp_')).toList(),
+      );
     }
     return null;
   }

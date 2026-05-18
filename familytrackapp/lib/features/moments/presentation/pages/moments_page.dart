@@ -7,7 +7,6 @@ import 'package:get_it/get_it.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:familytrackapp/core/constants/app_colors.dart';
-import 'package:familytrackapp/core/constants/app_decorations.dart';
 import 'package:familytrackapp/core/constants/app_enums.dart';
 import 'package:familytrackapp/core/constants/app_spacing.dart';
 import 'package:familytrackapp/core/constants/app_strings.dart';
@@ -16,6 +15,7 @@ import 'package:familytrackapp/core/services/firebase_service.dart';
 import 'package:familytrackapp/features/moments/domain/entities/moment_entity.dart';
 import 'package:familytrackapp/features/moments/presentation/cubit/moments_cubit.dart';
 import 'package:familytrackapp/features/profile/domain/entities/person_entity.dart';
+import 'package:familytrackapp/features/today/presentation/cubit/today_cubit.dart';
 import 'package:familytrackapp/shared/widgets/loading_skeleton.dart';
 
 class MomentsPage extends StatelessWidget {
@@ -55,17 +55,47 @@ class _MomentsView extends StatelessWidget {
             return const PageLoadingSkeleton(showHeroCard: false, itemCount: 6);
           }
           if (state is MomentsLoaded) {
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _MomentsHeader()),
-                if (state.moments.isEmpty)
-                  const SliverFillRemaining(child: _EmptyView())
-                else
-                  _TimelineList(moments: state.moments),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xl * 4),
-                ),
-              ],
+            return RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () async {
+                await context.read<MomentsCubit>().loadMoments(
+                  FirebaseService.currentUserId ?? '',
+                );
+              },
+              child: CustomScrollView(
+                slivers: [
+                  const SliverToBoxAdapter(child: _MomentsHeader()),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                      ),
+                      child: _MomentsToolbar(
+                        onAddTap: () => _showAddSheet(context, state.persons),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _PersonFilterChips(
+                        persons: state.persons,
+                        selectedId: state.selectedPersonId,
+                        onSelect: (id) =>
+                            context.read<MomentsCubit>().setPersonFilter(id),
+                      ),
+                    ),
+                  ),
+                  if (state.moments.isEmpty)
+                    const SliverFillRemaining(child: _EmptyView())
+                  else
+                    _TimelineList(moments: state.moments),
+                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                ],
+              ),
             );
           }
           return const SizedBox.shrink();
@@ -76,13 +106,12 @@ class _MomentsView extends StatelessWidget {
           if (state is! MomentsLoaded || state.persons.isEmpty) {
             return const SizedBox.shrink();
           }
-          return FloatingActionButton.extended(
+          return FloatingActionButton(
             heroTag: 'moments_fab',
             onPressed: () => _showAddSheet(context, state.persons),
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text(AppStrings.momentsAddFab),
+            child: const Icon(Icons.add_rounded, size: 32),
           );
         },
       ),
@@ -107,50 +136,286 @@ class _MomentsView extends StatelessWidget {
 // ─────────────────────────────────────────────────────────
 
 class _MomentsHeader extends StatelessWidget {
+  const _MomentsHeader();
+
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        top + AppSpacing.md,
-        AppSpacing.lg,
-        AppSpacing.md,
-      ),
-      decoration: AppDecorations.softGradientBackground,
-      child: Row(
-        children: [
-          Column(
+    return BlocBuilder<TodayCubit, TodayState>(
+      builder: (context, todayState) {
+        final person = todayState is TodayLoaded
+            ? todayState.selectedPerson
+            : null;
+        final initials = person != null && person.name.isNotEmpty
+            ? person.name.trim().split(' ').map((w) => w[0]).take(2).join()
+            : '?';
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            top + AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(AppStrings.appName, style: AppTextStyles.label),
-              Text(AppStrings.navMoments, style: AppTextStyles.h1),
-            ],
-          ),
-          const Spacer(),
-          BlocBuilder<MomentsCubit, MomentsState>(
-            builder: (context, state) {
-              final count = state is MomentsLoaded ? state.moments.length : 0;
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
+              Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.sm + 4),
+                  shape: BoxShape.circle,
                 ),
-                child: Text(
-                  '$count ${AppStrings.momentsCountSuffix}',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w700,
+                child: Center(
+                  child: Text(
+                    initials.toUpperCase(),
+                    style: AppTextStyles.h3.copyWith(
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
-              );
-            },
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Bugün', style: AppTextStyles.h1.copyWith(fontSize: 26)),
+                  Text(
+                    person?.relationshipType.label ?? '',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: AppColors.textSecondary,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Filtre Çipleri
+// ─────────────────────────────────────────────────────────
+
+class _PersonFilterChips extends StatelessWidget {
+  const _PersonFilterChips({
+    required this.persons,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<Person> persons;
+  final String? selectedId;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (persons.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        children: [
+          _FilterChip(
+            label: 'Tümü',
+            isSelected: selectedId == null,
+            onTap: () => onSelect(null),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          ...persons.map(
+            (p) => Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: _FilterChip(
+                label: p.name,
+                isSelected: selectedId == p.id,
+                onTap: () => onSelect(p.id),
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? null
+              : Border.all(color: AppColors.primaryLight, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: isSelected ? Colors.white : AppColors.primary,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MomentsToolbar extends StatelessWidget {
+  const _MomentsToolbar({required this.onAddTap});
+
+  final VoidCallback onAddTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            'Anılarımız',
+            style: AppTextStyles.h1.copyWith(
+              color: AppColors.primary,
+              fontSize: 26,
+            ),
+          ),
+        ),
+        Container(
+          width: 46,
+          height: 46,
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 14,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.flash_on_rounded,
+              color: AppColors.primary,
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(23),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 14,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _ToolbarIcon(
+                icon: Icons.view_list_rounded,
+                selected: true,
+                onTap: () {},
+              ),
+              const SizedBox(width: 6),
+              _ToolbarIcon(
+                icon: Icons.grid_view_rounded,
+                selected: false,
+                onTap: () {},
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        SizedBox(
+          width: 92,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: onAddTap,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+            child: const Text('+\nAnı Ekle', textAlign: TextAlign.center),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ToolbarIcon extends StatelessWidget {
+  const _ToolbarIcon({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.surface : Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primaryLight.withValues(alpha: 0.75)
+                : AppColors.primaryLight.withValues(alpha: 0.35),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 22),
+        ),
       ),
     );
   }
@@ -346,47 +611,101 @@ class _BadgeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: AppDecorations.primaryGradient,
-        borderRadius: BorderRadius.circular(AppSpacing.md),
-        boxShadow: AppDecorations.cardShadow,
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 22,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(moment.type.emoji, style: const TextStyle(fontSize: 22)),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'ROZET KAZANILDI',
-                style: AppTextStyles.label.copyWith(
-                  color: Colors.white70,
-                  letterSpacing: 1.5,
-                  fontSize: 10,
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
                 ),
+                child: Center(
+                  child: Text(
+                    moment.type.emoji,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ROZET KAZANILDI',
+                      style: AppTextStyles.label.copyWith(
+                        color: AppColors.primary,
+                        letterSpacing: 1.4,
+                        fontSize: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      moment.badgeName ?? moment.title,
+                      style: AppTextStyles.h2.copyWith(
+                        fontSize: 22,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    moment.date.day.toString().padLeft(2, '0'),
+                    style: AppTextStyles.h1.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 34,
+                    ),
+                  ),
+                  Text(
+                    _trMonthsShort[moment.date.month].toUpperCase(),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    moment.date.year.toString(),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          if (moment.badgeName != null) ...[
-            Text(
-              moment.badgeName!,
-              style: AppTextStyles.h2.copyWith(color: Colors.white),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-          ],
+          const SizedBox(height: AppSpacing.md),
           Text(
-            moment.title,
-            style: AppTextStyles.body.copyWith(color: Colors.white),
+            moment.description ?? moment.title,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              height: 1.4,
+            ),
           ),
           if (moment.description != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              moment.description!,
-              style: AppTextStyles.caption.copyWith(color: Colors.white70),
-            ),
           ],
         ],
       ),
@@ -402,32 +721,61 @@ class _PhotoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: AppDecorations.card,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 22,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppSpacing.md),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
             child: moment.hasImage
-                ? Image.network(
-                    moment.imageUrl!,
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        _PhotoFallback(moment: moment),
+                ? Stack(
+                    children: [
+                      Image.network(
+                        moment.imageUrl!,
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _PhotoFallback(moment: moment),
+                      ),
+                      Positioned(
+                        right: 14,
+                        bottom: 14,
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                            size: 34,
+                          ),
+                        ),
+                      ),
+                    ],
                   )
                 : _PhotoFallback(moment: moment),
           ),
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppStrings.momentsNiceMoment,
+                  'GÜZEL BİR AN',
                   style: AppTextStyles.label.copyWith(
                     color: AppColors.primary,
                     letterSpacing: 1.5,
@@ -435,7 +783,13 @@ class _PhotoCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(moment.title, style: AppTextStyles.bodyBold),
+                Text(
+                  moment.title,
+                  style: AppTextStyles.h2.copyWith(
+                    fontSize: 22,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 if (moment.description != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -462,7 +816,7 @@ class _PhotoFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 140,
+      height: 180,
       width: double.infinity,
       color: AppColors.primaryLight,
       child: Center(
@@ -479,17 +833,27 @@ class _StandardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: AppDecorations.card,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 22,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(
               color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(AppSpacing.sm),
+              shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
@@ -512,7 +876,13 @@ class _StandardCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(moment.title, style: AppTextStyles.bodyBold),
+                Text(
+                  moment.title,
+                  style: AppTextStyles.h2.copyWith(
+                    fontSize: 21,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 if (moment.description != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -634,7 +1004,7 @@ class _AddMomentSheetState extends State<_AddMomentSheet> {
                         style: AppTextStyles.caption.copyWith(
                           color: selected
                               ? Colors.white
-                              : AppColors.primaryDark,
+                              : AppColors.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

@@ -42,12 +42,13 @@ class AppBottomNav extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         boxShadow: AppDecorations.bottomNavShadow,
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           child: Row(
             children: List.generate(_items.length, (index) {
               final item = _items[index];
@@ -55,46 +56,49 @@ class AppBottomNav extends StatelessWidget {
 
               return Expanded(
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(24),
                   onTap: () => onTap(index),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFFFF89B2) // Image'daki canli pembe tonu
-                            : Colors.transparent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isActive ? item.activeIcon : item.icon,
-                            size: 24,
-                            color: isActive
-                                ? AppColors.primaryDark
-                                : AppColors.textPrimary,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            item.label,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: isActive
-                                      ? AppColors.primaryDark
-                                      : AppColors.textPrimary,
-                                  fontWeight: isActive
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                  fontSize: 10,
-                                ),
-                          ),
-                        ],
-                      ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.primaryLight
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isActive ? item.activeIcon : item.icon,
+                          size: 25,
+                          color: isActive
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: isActive
+                                    ? AppColors.textPrimary
+                                    : AppColors.textSecondary,
+                                fontWeight: isActive
+                                    ? FontWeight.w800
+                                    : FontWeight.w700,
+                                letterSpacing: 0.6,
+                                fontSize: 10,
+                              ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

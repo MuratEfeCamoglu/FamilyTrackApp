@@ -114,7 +114,7 @@ class _AvatarInitials extends StatelessWidget {
       child: Text(
         initials.toUpperCase(),
         style: AppTextStyles.h2.copyWith(
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
           fontSize: 22,
         ),
       ),
@@ -141,7 +141,7 @@ class _RelationshipBadge extends StatelessWidget {
       child: Text(
         '${type.emoji} ${type.label}',
         style: AppTextStyles.caption.copyWith(
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
           fontWeight: FontWeight.w600,
         ),
       ),

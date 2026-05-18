@@ -29,7 +29,7 @@ class MomentsCubit extends Cubit<MomentsState> {
   Future<void> loadMoments(String userId) async {
     emit(const MomentsLoading());
     if (userId.isEmpty) {
-      emit(const MomentsLoaded(moments: [], persons: []));
+      emit(const MomentsLoaded(allMoments: [], persons: []));
       return;
     }
 
@@ -45,7 +45,17 @@ class MomentsCubit extends Cubit<MomentsState> {
     // En yeni en üstte
     moments.sort((a, b) => b.date.compareTo(a.date));
 
-    emit(MomentsLoaded(moments: moments, persons: persons));
+    emit(MomentsLoaded(allMoments: moments, persons: persons));
+  }
+
+  void setPersonFilter(String? personId) {
+    final current = state;
+    if (current is MomentsLoaded) {
+      emit(current.copyWith(
+        selectedPersonId: personId,
+        clearSelectedPersonId: personId == null,
+      ));
+    }
   }
 
   // ── Ekleme ────────────────────────────────────────────
@@ -56,9 +66,11 @@ class MomentsCubit extends Cubit<MomentsState> {
   }) async {
     final current = state;
     final currentMoments =
-        current is MomentsLoaded ? current.moments : <Moment>[];
+        current is MomentsLoaded ? current.allMoments : <Moment>[];
     final currentPersons =
         current is MomentsLoaded ? current.persons : <Person>[];
+    final currentSelectedPersonId =
+        current is MomentsLoaded ? current.selectedPersonId : null;
 
     final result =
         await addMomentUseCase(AddMomentParams(userId: userId, moment: moment));
@@ -70,7 +82,11 @@ class MomentsCubit extends Cubit<MomentsState> {
       (newMoment) {
         final updated = [newMoment, ...currentMoments]
           ..sort((a, b) => b.date.compareTo(a.date));
-        emit(MomentsLoaded(moments: updated, persons: currentPersons));
+        emit(MomentsLoaded(
+          allMoments: updated,
+          persons: currentPersons,
+          selectedPersonId: currentSelectedPersonId,
+        ));
         return true;
       },
     );
@@ -96,9 +112,8 @@ class MomentsCubit extends Cubit<MomentsState> {
         return false;
       },
       (_) {
-        emit(MomentsLoaded(
-          moments: current.moments.where((m) => m.id != momentId).toList(),
-          persons: current.persons,
+        emit(current.copyWith(
+          allMoments: current.allMoments.where((m) => m.id != momentId).toList(),
         ));
         return true;
       },
