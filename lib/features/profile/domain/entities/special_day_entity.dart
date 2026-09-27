@@ -38,13 +38,22 @@ class SpecialDay extends Equatable {
 
   /// Bu yılki kutlamaya kaç gün kaldı (recurring için).
   int get daysUntilNext {
+    final DateTime now = DateTime.now();
+    // Karşılaştırmalar saat bilgisi olmadan, gün bazında yapılır.
+    final DateTime today = DateTime(now.year, now.month, now.day);
     if (!isRecurring) {
-      return date.difference(DateTime.now()).inDays;
+      return _dayDiff(DateTime(date.year, date.month, date.day), today);
     }
-    final now = DateTime.now();
-    var next = DateTime(now.year, date.month, date.day);
-    if (next.isBefore(now)) next = DateTime(now.year + 1, date.month, date.day);
-    return next.difference(DateTime(now.year, now.month, now.day)).inDays;
+    DateTime next = DateTime(now.year, date.month, date.day);
+    if (next.isBefore(today)) {
+      next = DateTime(now.year + 1, date.month, date.day);
+    }
+    return _dayDiff(next, today);
+  }
+
+  /// Yaz saati geçişlerine dayanıklı gün farkı.
+  static int _dayDiff(DateTime a, DateTime b) {
+    return (a.difference(b).inHours / 24).round();
   }
 
   SpecialDay copyWith({

@@ -146,7 +146,7 @@ class _ProfileViewState extends State<_ProfileView> {
       ),
     );
     if (mounted) {
-      context.read<ProfileCubit>().loadPersons(
+      cubit.loadPersons(
         userId: FirebaseService.currentUserId ?? '',
       );
     }

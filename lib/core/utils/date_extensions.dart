@@ -38,13 +38,17 @@ extension DateTimeExtensions on DateTime {
   /// Bu yılın aynı tarihine kaç gün kaldığını hesaplar.
   /// Yıldönümleri / doğum günleri için kullanılır.
   int daysUntilNextOccurrence() {
-    final now = DateTime.now();
-    final thisYear = DateTime(now.year, month, day);
-    final nextYear = DateTime(now.year + 1, month, day);
+    final DateTime now = DateTime.now();
+    // Saat bilgisi kırpılır; aksi halde yarınki tarih "0 gün" hesaplanır.
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime thisYear = DateTime(now.year, month, day);
+    final DateTime nextYear = DateTime(now.year + 1, month, day);
 
-    final diff = thisYear.difference(now).inDays;
+    // inDays yerine gün farkı yuvarlanır: yaz saati geçişlerinde
+    // 23/25 saatlik günler sonucu bir gün kaydırmasın.
+    final int diff = (thisYear.difference(today).inHours / 24).round();
     if (diff >= 0) return diff;
-    return nextYear.difference(now).inDays;
+    return (nextYear.difference(today).inHours / 24).round();
   }
 
   /// Tarih bugün mü?
